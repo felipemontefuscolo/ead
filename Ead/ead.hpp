@@ -8,38 +8,41 @@ namespace ead
 
 // Essa foi a forma mais rapida de realizar o produto escalar
 template<typename Expr, int Nleafs>
-struct ExprAccum
+struct ExprDxi
 {
   typedef typename Expr::ValueT ValueT;
   typedef typename Expr::LeafType LeafType;
-  ValueT product; // = exp.dx(i)
+  ValueT result; // = exp.dx(i)
   inline
-  ExprAccum(ValueT partials[], LeafType const* leafs[], int i)
+  ExprDxi(ValueT partials[], LeafType const* leafs[], int i)
   {
-    product  = partials[0] * leafs[0]->dx(i);
-    product += ExprAccum<Expr, Nleafs-1>(partials+1, leafs+1, i).product;
+    result  = partials[0] * leafs[0]->dx(i);
+    result += ExprDxi<Expr, Nleafs-1>(partials+1, leafs+1, i).result;
   }
 };
 
 template<typename Expr>
-struct ExprAccum<Expr,1>
+struct ExprDxi<Expr,1>
 {
   typedef typename Expr::ValueT ValueT;
   typedef typename Expr::LeafType LeafType;
-  ValueT product;
+  ValueT result;
   inline
-  ExprAccum(ValueT partials[], LeafType const* leafs[], int i) : product(partials[0] * leafs[0]->dx(i))
+  ExprDxi(ValueT partials[], LeafType const* leafs[], int i) : result(partials[0] * leafs[0]->dx(i))
   { }
 };
 
-// template<class A>
-struct Expression
+template<class A>
+struct ExprWrapp
 {
-//  const A& cast() const {return static_cast<const A&>(*this);}
+  inline
+  operator A const& () const
+  { return *static_cast<A const*>(this);}
 };
 
+struct LeafTag {};
 template<class T_, int Mnc_>
-class DFad : public Expression
+class DFad : public ExprWrapp<LeafTag>
 {
   typedef DFad Self;
 public:
@@ -109,18 +112,19 @@ public:
 
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                         \
-  template<class Expr>                                   \
-  Self& operator OP (Expr const& e)                      \
+  template<class Tag>                                    \
+  Self& operator OP (ExprWrapp<Tag> const& e)           \
   {                                                      \
     EAD_OP_DEBUG                                         \
-    ValueT partials[Expr::n_leafs];                      \
-    DFad const* leafs[Expr::n_leafs];                    \
+    typedef ExprWrapp<Tag> ExprT;                       \
+    ValueT partials[ExprT::n_leafs];                     \
+    DFad const* leafs[ExprT::n_leafs];                   \
     e.computePartialsAndGetLeafs(1.0, partials, leafs);  \
     ValueT e_val = e.val();                              \
     ValueT e_dxi;                                        \
     for (unsigned i = 0; i<m_n_comps; ++i)               \
     {                                                    \
-      e_dxi = ExprAccum<Expr, Expr::n_leafs>(partials, leafs, i).product; \
+      e_dxi = ExprDxi<ExprT, ExprT::n_leafs>(partials, leafs, i).result; \
       IMPL                                               \
     }                                                    \
     this->val() OP e_val;                                \
@@ -141,8 +145,11 @@ public:
 }; // end class DFad
 
 
+template<class L, class R>
+struct MultTag {};
+
 template<typename ExprL, typename ExprR>
-class MultExpr : public Expression
+class ExprWrapp<MultTag<ExprL,ExprR> >
 {
 
   ExprL const& m_expL;
@@ -160,10 +167,10 @@ public:
   static int const n_leafs2 = ExprR::n_leafs;
   static int const n_leafs  = n_leafs1 + n_leafs2;
 
-  MultExpr(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),
-                                                 m_expR(rhs),
-                                                 m_valL(lhs.val()),
-                                                 m_valR(rhs.val())
+  ExprWrapp(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),
+                                                   m_expR(rhs),
+                                                   m_valL(lhs.val()),
+                                                   m_valR(rhs.val())
   { }
 
   ValueT val() const
@@ -181,10 +188,11 @@ public:
 };
 
 template<typename ExprL, typename ExprR>
-MultExpr<ExprL, ExprR>
+ExprWrapp<MultTag<ExprL,ExprR> >
 operator* (ExprL const& l, ExprR const& r)
 {
-  return MultExpr<ExprL, ExprR>(l,r);
+  typedef ExprWrapp<MultTag<ExprL,ExprR> > MultExpr;
+  return MultExpr(l,r);
 }
 
 
