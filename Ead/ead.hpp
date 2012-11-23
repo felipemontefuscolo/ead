@@ -40,9 +40,8 @@ struct ExprWrapp
   { return *static_cast<A const*>(this);}
 };
 
-struct LeafTag {};
 template<class T_, int Mnc_>
-class DFad : public ExprWrapp<LeafTag>
+class DFad : public ExprWrapp<DFad<T_, Mnc_> >
 {
   typedef DFad Self;
 public:
@@ -112,11 +111,11 @@ public:
 
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                         \
-  template<class Tag>                                    \
-  Self& operator OP (ExprWrapp<Tag> const& e)           \
+  template<class ExprT>                                  \
+  Self& operator OP (ExprWrapp<ExprT> const& e_)         \
   {                                                      \
+    ExprT const& e (e_);                                 \
     EAD_OP_DEBUG                                         \
-    typedef ExprWrapp<Tag> ExprT;                       \
     ValueT partials[ExprT::n_leafs];                     \
     DFad const* leafs[ExprT::n_leafs];                   \
     e.computePartialsAndGetLeafs(1.0, partials, leafs);  \
@@ -145,11 +144,8 @@ public:
 }; // end class DFad
 
 
-template<class L, class R>
-struct MultTag {};
-
 template<typename ExprL, typename ExprR>
-class ExprWrapp<MultTag<ExprL,ExprR> >
+class MultExpr : public ExprWrapp<MultExpr<ExprL,ExprR> >
 {
 
   ExprL const& m_expL;
@@ -167,10 +163,10 @@ public:
   static int const n_leafs2 = ExprR::n_leafs;
   static int const n_leafs  = n_leafs1 + n_leafs2;
 
-  ExprWrapp(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),
-                                                   m_expR(rhs),
-                                                   m_valL(lhs.val()),
-                                                   m_valR(rhs.val())
+  MultExpr(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),
+                                                 m_expR(rhs),
+                                                 m_valL(lhs.val()),
+                                                 m_valR(rhs.val())
   { }
 
   ValueT val() const
@@ -187,12 +183,12 @@ public:
 
 };
 
-template<typename ExprL, typename ExprR>
-ExprWrapp<MultTag<ExprL,ExprR> >
-operator* (ExprL const& l, ExprR const& r)
+template<typename L, typename R>
+inline
+MultExpr<L, R>
+operator* (ExprWrapp<L> const& l, ExprWrapp<R> const& r)
 {
-  typedef ExprWrapp<MultTag<ExprL,ExprR> > MultExpr;
-  return MultExpr(l,r);
+  return MultExpr<L, R>(l,r);
 }
 
 
