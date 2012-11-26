@@ -14,15 +14,15 @@
 
 namespace ead
 {
-  
-template<bool, typename T = void> 
+
+template<bool, typename T = void>
 struct EnableIf {};
 
 template<typename T>
 struct EnableIf<true, T> {
   typedef T type;
 };
-  
+
 template< class T >
 struct is_type {
   static const bool value = true;
@@ -43,9 +43,9 @@ struct GetField<U,
 {
   typedef typename GetField<typename U::ValueT>::type type;
 };
-  
-  
-  
+
+
+
 template<class U, class V = void>
 struct RetTrivial
 {
@@ -61,20 +61,26 @@ struct RetTrivial<U,
   typedef U&       type;
   typedef U const& const_type;
   //static char const id = 'B';
-};  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+};
+
+
+template<typename T, typename Expr>
+struct IsField
+{
+  typedef typename Expr::FieldT FieldT;
+  static const bool value = std::tr1::is_arithmetic<T>::value ||
+                            std::tr1::is_same<T,FieldT>::value;
+};
+
+
+
+
+
+
+
+
+
+
 } // endnamespace
 
 
