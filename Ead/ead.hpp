@@ -87,7 +87,7 @@ private:
 
   void setDxZeros()
   {
-    for (int i = 0; i < m_n_comps; ++i)
+    for (unsigned i = 0; i < m_n_comps; ++i)
       m_dx[i] = ValueT(0.0);
   };
 
@@ -292,10 +292,10 @@ EAD_BINARY_OP(operator-, BinSubtExpr, x - y, bar       ,-bar     )
 EAD_BINARY_OP(operator*, BinMultExpr, x*y  , bar*y, x*bar        )
 EAD_BINARY_OP(operator/, BinDiviExpr, x/y  , bar/y,(-x/(y*y))*bar)
 
-EAD_BINARY_OP(max, BinMaxExpr, (x<y)?y:x, (x<y)?ValueT(0):bar, (x<y)?bar:ValueT(0))
-EAD_BINARY_OP(min, BinMinExpr,!(x<y)?y:x,!(x<y)?ValueT(0):bar,!(x<y)?bar:ValueT(0))
+EAD_BINARY_OP(max, BinMaxExpr, (x<y)?y:x, ((x==y? .5 :  (x<y)?0:1))*bar, ((x==y? .5 :  (x<y)?1:0))*bar)
+EAD_BINARY_OP(min, BinMinExpr,!(x<y)?y:x, ((x==y? .5 : !(x<y)?0:1))*bar, ((x==y? .5 : !(x<y)?1:0))*bar)
 
-EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*log(x))
+EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*std::log(x))
 
 #undef EAD_BINARY_OP
 
@@ -305,7 +305,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
 // ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
 // =====================================================================
 //                                                                    ::
-//                         UNARY OPERATORS                            ::
+//                        PSEUDO-UNARY OPERATORS                      ::
 //                                                                    ::
 // =====================================================================
 // ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
@@ -317,7 +317,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
 // in the sense that only one Expr class is involved, e.g., X+scalar,
 // scalar+X, scalar*X, X*scalar, pow(X, scalar), pow(scalar, X), etc.
 
-
+#define X m_exp.val()
 #define EAD_PSEUDO_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                            \
   template<typename T, typename ExprT>                                                                       \
   class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<T,ExprT> >                                             \
@@ -331,14 +331,14 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
   private:                                                                                                   \
     ExprT const& m_exp;                                                                                      \
                                                                                                              \
-    T const& m_sval; /* scalar value */                                                                      \
+    T const& a; /* scalar value */                                                                           \
                                                                                                              \
   public:                                                                                                    \
                                                                                                              \
     static int const n_leafs  = ExprT::n_leafs;                                                              \
                                                                                                              \
     OP_CLASS_NAME(T const& s_, ExprT const& e_) : m_exp(e_),                                                 \
-                                                  m_sval(s_)                                                 \
+                                                  a(s_)                                                      \
     { }                                                                                                      \
                                                                                                              \
     ValueT val() const                                                                                       \
@@ -354,7 +354,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
                                                                                                              \
   };
 
-#define EAD_PSEUDO_UNARY_OP_OPERATOR_L(OP_FUN_NAME, OP_CLASS_NAME)                                           \
+#define EAD_PSEUDO_UNARY_OP_FUNCTION_L(OP_FUN_NAME, OP_CLASS_NAME)                                           \
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
@@ -364,7 +364,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
   }
 
 
-#define EAD_PSEUDO_UNARY_OP_OPERATOR_R(OP_FUN_NAME, OP_CLASS_NAME)                                           \
+#define EAD_PSEUDO_UNARY_OP_FUNCTION_R(OP_FUN_NAME, OP_CLASS_NAME)                                           \
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
@@ -373,30 +373,135 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*l
     return OP_CLASS_NAME<T,Expr>(l,r);                                                                       \
   }
 
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator+, UnaAddiExpr, m_exp.val()+m_sval, bar       ) // case:
-EAD_PSEUDO_UNARY_OP_OPERATOR_L(operator+, UnaAddiExpr)                                 // X + scalar
-EAD_PSEUDO_UNARY_OP_OPERATOR_R(operator+, UnaAddiExpr)                                 // scalar + X
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator+, UnaAddiExpr, X+a, bar       ) // case:
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(operator+, UnaAddiExpr)                  // X + scalar
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(operator+, UnaAddiExpr)                  // scalar + X
 
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator*, UnaMultExpr, m_exp.val()*m_sval, bar*m_sval) // case:
-EAD_PSEUDO_UNARY_OP_OPERATOR_L(operator*, UnaMultExpr)                                 // X*scalar
-EAD_PSEUDO_UNARY_OP_OPERATOR_R(operator*, UnaMultExpr)                                 // scalar*X
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator*, UnaMultExpr, X*a, bar*a) // case:
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(operator*, UnaMultExpr)             // X*scalar
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(operator*, UnaMultExpr)             // scalar*X
+
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(max, UnaMaxExpr, (X<a)?a:X,  (  X==a ? 0.5 : ((X<a)?0.:1.) )*bar ) // case:
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(max, UnaMaxExpr)                                                  // max(X,scalar)
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(max, UnaMaxExpr)                                                  // max(scalar,X)
+
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(min, UnaMinExpr, !(X<a)?a:X, (  X==a ? 0.5 : (!(X<a)?0.:1.) )*bar ) // case:
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(min, UnaMinExpr)                                                    // min(X,scalar)
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(min, UnaMinExpr)                                                    // min(scalar,X)
+
 
 // UnaDiviExpr and UnaSubtExpr are not symmetric,
 // therefore must be implemented separately.
 
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator-, UnaSubtExprL, m_exp.val()-m_sval,  bar) // expr at left
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator-, UnaSubtExprR, m_sval-m_exp.val(), -bar) // expr at right
-EAD_PSEUDO_UNARY_OP_OPERATOR_L(operator-, UnaSubtExprL)                           // X - scalar
-EAD_PSEUDO_UNARY_OP_OPERATOR_R(operator-, UnaSubtExprR)                           // scalar - X
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator-, UnaSubtExprL, X-a,  bar) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator-, UnaSubtExprR, a-X, -bar) // expr at right
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(operator-, UnaSubtExprL)            // X - scalar
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(operator-, UnaSubtExprR)            // scalar - X
 
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator/, UnaDiviExprL, m_exp.val()/m_sval,  bar/m_sval                            ) // expr at left
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator/, UnaDiviExprR, m_sval/m_exp.val(), -(m_sval/(m_exp.val()*m_exp.val()))*bar) // expr at right
-EAD_PSEUDO_UNARY_OP_OPERATOR_L(operator/, UnaDiviExprL)                                                              // X / scalar
-EAD_PSEUDO_UNARY_OP_OPERATOR_R(operator/, UnaDiviExprR)                                                              // scalar / X
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator/, UnaDiviExprL, X/a,  bar/a        ) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator/, UnaDiviExprR, a/X, -(a/(X*X))*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(operator/, UnaDiviExprL)                      // X / scalar
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(operator/, UnaDiviExprR)                      // scalar / X
+
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow, UnaPowExprL, std::pow(X,a), a*std::pow(X,a-T(1))*bar     ) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow, UnaPowExprR, std::pow(a,X), std::pow(a,X)*std::log(a)*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(pow, UnaPowExprL)                                               // pow(X , scalar)
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow, UnaPowExprR)                                               // pow(scalar , X)
 
 #undef EAD_PSEUDO_UNARY_OP_CLASS_TYPE
-#undef EAD_PSEUDO_UNARY_OP_OPERATOR_L
-#undef EAD_PSEUDO_UNARY_OP_OPERATOR_R
+#undef EAD_PSEUDO_UNARY_OP_FUNCTION_L
+#undef EAD_PSEUDO_UNARY_OP_FUNCTION_R
+#undef X
+
+
+
+
+
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// =====================================================================
+//                                                                    ::
+//                          UNARY OPERATORS                           ::
+//                                                                    ::
+// =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+
+#define X m_exp.val()
+#define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                                   \
+  template<typename ExprT>                                                                                   \
+  class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<ExprT> >                                               \
+  {                                                                                                          \
+  public:                                                                                                    \
+    typedef typename ExprT::ValueT ValueT;                                                                   \
+    typedef typename ExprT::FieldT FieldT;                                                                   \
+    typedef typename ExprT::ValueT_CR ValueT_CR;                                                             \
+    typedef typename ExprT::LeafType LeafType;                                                               \
+                                                                                                             \
+  private:                                                                                                   \
+    ExprT const& m_exp;                                                                                      \
+                                                                                                             \
+  public:                                                                                                    \
+                                                                                                             \
+    static int const n_leafs  = ExprT::n_leafs;                                                              \
+                                                                                                             \
+    OP_CLASS_NAME(ExprT const& e_) : m_exp(e_)                                                               \
+    { }                                                                                                      \
+                                                                                                             \
+    ValueT val() const                                                                                       \
+    {return VAL_RET;}                                                                                        \
+                                                                                                             \
+    unsigned numComps() const                                                                                \
+    { return m_exp.numComps(); }                                                                             \
+                                                                                                             \
+    void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
+    {                                                                                                        \
+      m_exp.computePartialsAndGetLeafs(DEDX, partials, leafs);                                               \
+    }                                                                                                        \
+                                                                                                             \
+  };                                                                                                         \
+                                                                                                             \
+  template<typename Expr>                                                                                    \
+  inline                                                                                                     \
+  OP_CLASS_NAME<Expr>                                                                                        \
+  OP_FUN_NAME (ExprWrap<Expr> const& e_)                                                                     \
+  {                                                                                                          \
+    return OP_CLASS_NAME<Expr>(e_);                                                                          \
+  }
+//  ------------------------end EAD_UNARY_OP_CLASS_TYPE
+
+
+EAD_UNARY_OP_CLASS_TYPE(operator+, UnaPlusExpr,   X,  bar)
+EAD_UNARY_OP_CLASS_TYPE(operator-, UnaMinusExpr, -X, -bar)
+
+EAD_UNARY_OP_CLASS_TYPE(cos  , UnaCosExpr  ,  std::cos(X)  , -std::sin(X)*bar             )
+EAD_UNARY_OP_CLASS_TYPE(sin  , UnaSinExpr  ,  std::sin(X)  ,  std::cos(X)*bar             )
+EAD_UNARY_OP_CLASS_TYPE(tan  , UnaTanExpr  ,  std::tan(X)  , (1./pow(std::cos(X),2))*bar  )
+EAD_UNARY_OP_CLASS_TYPE(acos , UnaAcosExpr ,  std::acos(X) , (-1./std::sqrt(1-X*X))*bar   )
+EAD_UNARY_OP_CLASS_TYPE(asin , UnaAsinExpr ,  std::asin(X) , ( 1./std::sqrt(1-X*X))*bar   )
+EAD_UNARY_OP_CLASS_TYPE(atan , UnaAtanExpr ,  std::atan(X) , ( 1./(1+X*X))*bar            )
+
+EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr ,  std::cosh(X) ,  std::sinh(X)*bar            )
+EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr ,  std::sinh(X) ,  std::cosh(X)*bar            )
+EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./pow(std::cosh(X),2))*bar )
+
+EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar              )
+EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr  ,  std::log(X)  , bar/X                        )
+EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr,  std::log10(X), bar/(X*std::log(10))         )
+
+EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr ,  std::sqrt(X) , bar/(2.*std::sqrt(X))        )
+
+EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr ,  std::ceil(X) , 0.*bar                       )
+EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar)
+EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar)
+EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr,  std::floor(X), 0.*bar                       )
+EAD_UNARY_OP_CLASS_TYPE(fmod , UnaFmodExpr ,  std::fmod(X) , bar                          )
+
+#undef EAD_UNARY_OP_CLASS_TYPE
+#undef X
+
 
 } // endnamespace
 #endif // EAD_HPP
