@@ -15,6 +15,7 @@
 #include <iostream>
 #include "ead_mpl.hpp"
 #include "ead_check.hpp"
+#include <cmath>
 
 namespace ead
 {
@@ -140,7 +141,7 @@ public:
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                         \
   template<class ExprT>                                  \
-  Self& operator OP (ExprWrap<ExprT> const& e_)         \
+  Self& operator OP (ExprWrap<ExprT> const& e_)          \
   {                                                      \
     ExprT const& e (e_);                                 \
     EAD_CHECK(numComps()==e.numComps(), "incompatible dimension"); \
@@ -212,21 +213,29 @@ public:
   }
 
 
-}; // end class DFad
+}; // ------------ end class DFad ------------------
 
 
 
 
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
 // =====================================================================
 //                                                                    ::
-//                BINARY OPERATORS                                    ::
+//                         BINARY OPERATORS                           ::
 //                                                                    ::
 // =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+                                                     
+
 
 // DUMMY_S is not used for anything
-#define EAD_BINARY_OP(OP_SYMBOL, DUMMY_S, OP_NAME, VAL_RET, DEDL, DEDR)                                \
+#define EAD_BINARY_OP(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDL, DEDR)                                 \
 template<typename ExprL, typename ExprR>                                                               \
-class OP_NAME : public ExprWrap<OP_NAME<ExprL,ExprR> >                                                 \
+class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<ExprL,ExprR> >                                     \
 {                                                                                                      \
 public:                                                                                                \
   typedef typename ExprL::ValueT ValueT;                                                               \
@@ -239,8 +248,8 @@ private:                                                                        
   ExprL const& m_expL;                                                                                 \
   ExprR const& m_expR;                                                                                 \
                                                                                                        \
-  ValueT const m_valL;                                                                                 \
-  ValueT const m_valR;                                                                                 \
+  ValueT const x;    /* left value  */                                                                 \
+  ValueT const y;    /* right value */                                                                 \
                                                                                                        \
 public:                                                                                                \
                                                                                                        \
@@ -248,10 +257,10 @@ public:                                                                         
   static int const n_leafs2 = ExprR::n_leafs;                                                          \
   static int const n_leafs  = n_leafs1 + n_leafs2;                                                     \
                                                                                                        \
-  OP_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                           \
+  OP_CLASS_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     \
                                                 m_expR(rhs),                                           \
-                                                m_valL(lhs.val()),                                     \
-                                                m_valR(rhs.val())                                      \
+                                                x(lhs.val()),                                          \
+                                                y(rhs.val())                                           \
   { }                                                                                                  \
                                                                                                        \
   ValueT val() const                                                                                   \
@@ -270,27 +279,39 @@ public:                                                                         
                                                                                                        \
 template<typename L, typename R>                                                                       \
 inline                                                                                                 \
-OP_NAME<L, R>                                                                                          \
-operator OP_SYMBOL (ExprWrap<L> const& l, ExprWrap<R> const& r)                                        \
+OP_CLASS_NAME<L, R>                                                                                    \
+OP_FUN_NAME (ExprWrap<L> const& l, ExprWrap<R> const& r)                                               \
 {                                                                                                      \
-  return OP_NAME<L, R>(l,r);                                                                           \
+  return OP_CLASS_NAME<L, R>(l,r);                                                                     \
 }
 // END EAD_BINARY_OP MACRO ----------------------------------------------------------------------------
 
 
+EAD_BINARY_OP(operator+, BinAddiExpr, x + y, bar       , bar     )
+EAD_BINARY_OP(operator-, BinSubtExpr, x - y, bar       ,-bar     )
+EAD_BINARY_OP(operator*, BinMultExpr, x*y  , bar*y, x*bar        )
+EAD_BINARY_OP(operator/, BinDiviExpr, x/y  , bar/y,(-x/(y*y))*bar)
 
-EAD_BINARY_OP(*,*, BinMultExpr, m_valL*m_valR  , bar*m_valR, m_valL*bar                  )
-EAD_BINARY_OP(/,/, BinDiviExpr, m_valL/m_valR  , bar/m_valR,(-m_valL/(m_valR*m_valR))*bar)
-EAD_BINARY_OP(+,+, BinAddiExpr, m_valL + m_valR, bar       , bar                         )
-EAD_BINARY_OP(-,-, BinSubtExpr, m_valL - m_valR, bar       ,-bar                         )
+EAD_BINARY_OP(max, BinMaxExpr, (x<y)?y:x, (x<y)?ValueT(0):bar, (x<y)?bar:ValueT(0))
+EAD_BINARY_OP(min, BinMinExpr,!(x<y)?y:x,!(x<y)?ValueT(0):bar,!(x<y)?bar:ValueT(0))
+
+EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*log(x))
 
 #undef EAD_BINARY_OP
 
+
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
 // =====================================================================
 //                                                                    ::
-//                UNARY OPERATORS                                     ::
+//                         UNARY OPERATORS                            ::
 //                                                                    ::
 // =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+
 
 // OBS: Binary operators involving scalars is considered unary operators
 // here, e.g., X+scalar, scalar+X, scalar*X, X*scalar, etc.
