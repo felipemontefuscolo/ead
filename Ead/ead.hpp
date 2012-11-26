@@ -1,12 +1,27 @@
+// This file is part of Ead, a lightweight C++ template library
+// for automatic differentiation.
+//
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
+#ifndef EAD_HPP
+#define EAD_HPP
+
+
 #include <functional>
 #include <vector>
 #include <iostream>
-//
+#include "ead_mpl.hpp"
+#include "ead_check.hpp"
 
 namespace ead
 {
 
+
 // Essa foi a forma mais rapida de realizar o produto escalar
+// This class compute the ith derivative of an expression
 template<typename Expr, int Nleafs>
 struct ExprDxi
 {
@@ -32,31 +47,44 @@ struct ExprDxi<Expr,1>
   { }
 };
 
+// all fad numbers and expressions inherits from this class.
 template<class A>
-struct ExprWrapp
+struct ExprWrap
 {
   inline
   operator A const& () const
   { return *static_cast<A const*>(this);}
 };
 
-template<class T_, int Mnc_>
-class DFad : public ExprWrapp<DFad<T_, Mnc_> >
+// AD type
+template<typename T_, unsigned Mnc_>
+class DFad : public ExprWrap<DFad<T_, Mnc_> >
 {
   typedef DFad Self;
 public:
-  typedef T_   ValueT;
+  typedef T_   ValueT; // can be a base type or Dfad itself.
+  typedef typename GetField<ValueT>::type FieldT;// FieldT is the base
+                                                 // type, e.g., double,
+                                                 // float, complex, etc.
+  // Returns ValueT if it has trivial constructor,
+  // and returns ValueT const& otherwise.
+  typedef typename RetTrivial<ValueT>::const_type ValueT_CR;
+
   typedef DFad LeafType;
-  static const int max_n_comps = Mnc_;
+  static const unsigned max_n_comps = Mnc_;
 private:
+
+  // ------------ ATTRIBUTES --------------------------
   ValueT   m_val;             // value
   unsigned m_n_comps;
   ValueT   m_dx[max_n_comps]; // df/dui
+  // ---------------------------------------------------
+
 
   void resize(unsigned s)
   { m_n_comps = s;}
 
-  void setZeros()
+  void setDxZeros()
   {
     for (int i = 0; i < m_n_comps; ++i)
       m_dx[i] = ValueT(0.0);
@@ -66,56 +94,56 @@ public:
 
   static int const n_leafs = 1;
 
-  inline
-  DFad(ValueT val, int n_comps) : m_val(val), m_n_comps(n_comps), m_dx()
+  inline explicit
+  DFad(ValueT_CR val=ValueT(0), unsigned n_comps=0) : m_val(val), m_n_comps(n_comps), m_dx()
   {
-#ifdef EAD_DEBUG
-    if (n_comps > max_n_comps)
-      std::cout << "WARNING: num comps > max num comps\n";
-#endif
+    EAD_CHECK(n_comps <= max_n_comps, "num comps > max num comps");
   }
 
-  ValueT  val() const { return m_val; }
-  ValueT& val()       { return m_val; }
-  ValueT  dx(unsigned i)  const { return m_dx[i]; }
-  ValueT& dx(unsigned i)        { return m_dx[i]; }
+  inline
+  DFad(ValueT_CR val, unsigned n_comps, unsigned ith) : m_val(val), m_n_comps(n_comps), m_dx()
+  {
+    EAD_CHECK(n_comps <= max_n_comps && ith < n_comps, "num comps > max num comps or ith >= n_comps");
+    m_dx(ith) = ValueT(1.0);
+  }
+
+  ValueT&    val()          { return m_val; }
+  ValueT&    dx(unsigned i) { return m_dx[i]; }
+
+  ValueT_CR  val()          const { return m_val; }
+  ValueT_CR  dx(unsigned i) const { return m_dx[i]; }
+
   unsigned numComps() const {return m_n_comps;}
-  void setDiff(int ith, int n_comps)
+
+  /// ith = -1 to set dx to zero
+  void setDiff(int ith, unsigned n_comps)
   {
     m_n_comps = n_comps;
-    setZeros();
-    dx(ith) = ValueT(1.0);
+    setDxZeros();
+    if (unsigned(ith) < n_comps)
+      dx(ith) = ValueT(1.0);
   }
 
   // bar = df/dterminal
-  void computePartialsAndGetLeafs(ValueT bar, ValueT partials[], DFad const* leafs[]) const
+  void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], DFad const* leafs[]) const
   {
     partials[0] = bar;
     leafs[0] = this;
   }
 
-  //////////////////////////////////////////////////////////////////////
-  ////////////////// OPERATORS /////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////
-
-#ifdef EAD_DEBUG
-  #define EAD_OP_DEBUG                                                                           \
-    if (numComps() != e.numComps())                                                             \
-    {                                                                                           \
-      std::cout << "ERROR: " <<numComps()<<" x "<< e.numComps()<<std::endl;     \
-      throw;                                                                                    \
-    }
-#else
-  #define EAD_OP_DEBUG
-#endif
+//         ----------------------------------------------
+//     -------------------------------------------------------
+//------------------ ASSIGNS OPERATORS | EXPR VERSION ---------------
+//     -------------------------------------------------------
+//         ----------------------------------------------
 
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                         \
   template<class ExprT>                                  \
-  Self& operator OP (ExprWrapp<ExprT> const& e_)         \
+  Self& operator OP (ExprWrap<ExprT> const& e_)         \
   {                                                      \
     ExprT const& e (e_);                                 \
-    EAD_OP_DEBUG                                         \
+    EAD_CHECK(numComps()==e.numComps(), "incompatible dimension"); \
     ValueT partials[ExprT::n_leafs];                     \
     DFad const* leafs[ExprT::n_leafs];                   \
     e.computePartialsAndGetLeafs(1.0, partials, leafs);  \
@@ -140,62 +168,217 @@ public:
   EAD_ASSIGN_OPS(/=, dx(i) = (dx(i)*e_val - val()*e_dxi)/(e_val*e_val); )
 
 #undef EAD_ASSIGN_OPS
-#undef EAD_OP_DEBUG
+
+
+
+//         ----------------------------------------------
+//     -------------------------------------------------------
+//------------------ ASSIGNS OPERATORS | FIELD VERSION ---------------
+//     -------------------------------------------------------
+//         ----------------------------------------------
+
+  Self& operator= (FieldT const& z)
+  {
+    this->val() = z;
+    return *this;
+  }
+
+  Self& operator+= (FieldT const& z)
+  {
+    this->val() += z;
+    return *this;
+  }
+
+  Self& operator-= (FieldT const& z)
+  {
+    this->val() -= z;
+    return *this;
+  }
+
+  Self& operator*= (FieldT const& z)
+  {
+    this->val() *= z;
+    for (int i = 0; i < m_n_comps; ++i)
+      this->dx(i) *= z;
+    return *this;
+  }
+
+  Self& operator/= (FieldT const& z)
+  {
+    this->val() /= z;
+    for (int i = 0; i < m_n_comps; ++i)
+      this->dx(i) /= z;
+    return *this;
+  }
+
+
 }; // end class DFad
 
 
-template<typename ExprL, typename ExprR>
-class MultExpr : public ExprWrapp<MultExpr<ExprL,ExprR> >
-{
 
-  ExprL const& m_expL;
-  ExprR const& m_expR;
 
-  const double m_valL;
-  const double m_valR;
+// =====================================================================
+//                                                                    ::
+//                BINARY OPERATORS                                    ::
+//                                                                    ::
+// =====================================================================
 
-public:
+// DUMMY_S is not used for anything
+#define EAD_BINARY_OP(OP_SYMBOL, DUMMY_S, OP_NAME, VAL_RET, DEDL, DEDR)                                \
+template<typename ExprL, typename ExprR>                                                               \
+class OP_NAME : public ExprWrap<OP_NAME<ExprL,ExprR> >                                                 \
+{                                                                                                      \
+public:                                                                                                \
+  typedef typename ExprL::ValueT ValueT;                                                               \
+  typedef typename ExprL::FieldT FieldT;                                                               \
+  typedef typename ExprL::ValueT_CR ValueT_CR;                                                         \
+  typedef typename ExprL::LeafType LeafType;                                                           \
+                                                                                                       \
+private:                                                                                               \
+                                                                                                       \
+  ExprL const& m_expL;                                                                                 \
+  ExprR const& m_expR;                                                                                 \
+                                                                                                       \
+  ValueT const m_valL;                                                                                 \
+  ValueT const m_valR;                                                                                 \
+                                                                                                       \
+public:                                                                                                \
+                                                                                                       \
+  static int const n_leafs1 = ExprL::n_leafs;                                                          \
+  static int const n_leafs2 = ExprR::n_leafs;                                                          \
+  static int const n_leafs  = n_leafs1 + n_leafs2;                                                     \
+                                                                                                       \
+  OP_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                           \
+                                                m_expR(rhs),                                           \
+                                                m_valL(lhs.val()),                                     \
+                                                m_valR(rhs.val())                                      \
+  { }                                                                                                  \
+                                                                                                       \
+  ValueT val() const                                                                                   \
+  { return VAL_RET;}                                                                                   \
+                                                                                                       \
+  unsigned numComps() const                                                                            \
+  { return m_expL.numComps(); }                                                                        \
+                                                                                                       \
+  void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const     \
+  {                                                                                                    \
+    m_expL.computePartialsAndGetLeafs(DEDL, partials, leafs);                                          \
+    m_expR.computePartialsAndGetLeafs(DEDR, partials + n_leafs1, leafs + n_leafs1);                    \
+  }                                                                                                    \
+                                                                                                       \
+};                                                                                                     \
+                                                                                                       \
+template<typename L, typename R>                                                                       \
+inline                                                                                                 \
+OP_NAME<L, R>                                                                                          \
+operator OP_SYMBOL (ExprWrap<L> const& l, ExprWrap<R> const& r)                                        \
+{                                                                                                      \
+  return OP_NAME<L, R>(l,r);                                                                           \
+}
+// END EAD_BINARY_OP MACRO ----------------------------------------------------------------------------
 
-  typedef typename ExprL::ValueT ValueT;
-  typedef typename ExprL::LeafType LeafType;
 
-  static int const n_leafs1 = ExprL::n_leafs;
-  static int const n_leafs2 = ExprR::n_leafs;
-  static int const n_leafs  = n_leafs1 + n_leafs2;
 
-  MultExpr(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),
-                                                 m_expR(rhs),
-                                                 m_valL(lhs.val()),
-                                                 m_valR(rhs.val())
-  { }
+EAD_BINARY_OP(*,*, BinMultExpr, m_valL*m_valR  , bar*m_valR, m_valL*bar                  )
+EAD_BINARY_OP(/,/, BinDiviExpr, m_valL/m_valR  , bar/m_valR,(-m_valL/(m_valR*m_valR))*bar)
+EAD_BINARY_OP(+,+, BinAddiExpr, m_valL + m_valR, bar       , bar                         )
+EAD_BINARY_OP(-,-, BinSubtExpr, m_valL - m_valR, bar       ,-bar                         )
 
-  ValueT val() const
-  { return m_valL*m_valR;}
+#undef EAD_BINARY_OP
 
-  unsigned numComps() const
-  { return m_expL.numComps(); }
+// =====================================================================
+//                                                                    ::
+//                UNARY OPERATORS                                     ::
+//                                                                    ::
+// =====================================================================
 
-  void computePartialsAndGetLeafs(ValueT bar, ValueT partials[], LeafType const* leafs[]) const
-  {
-    m_expL.computePartialsAndGetLeafs(bar*m_valR, partials, leafs);
-    m_expR.computePartialsAndGetLeafs(bar*m_valL, partials + n_leafs1, leafs + n_leafs1);
+// OBS: Binary operators involving scalars is considered unary operators
+// here, e.g., X+scalar, scalar+X, scalar*X, X*scalar, etc.
+
+
+#define EAD_PSEUDO_UNARY_OP_CLASS_TYPE(OP_SYMBOL, DUMMY_S, OP_NAME, VAL_RET, DEDX)                           \
+  template<typename ExprT>                                                                                   \
+  class OP_NAME : public ExprWrap<OP_NAME<ExprT> >                                                           \
+  {                                                                                                          \
+  public:                                                                                                    \
+    typedef typename ExprT::ValueT ValueT;                                                                   \
+    typedef typename ExprT::FieldT FieldT;                                                                   \
+    typedef typename ExprT::ValueT_CR ValueT_CR;                                                             \
+    typedef typename ExprT::LeafType LeafType;                                                               \
+                                                                                                             \
+  private:                                                                                                   \
+    ExprT const& m_exp;                                                                                      \
+                                                                                                             \
+    FieldT const& m_sval; /* scalar value */                                                                 \
+                                                                                                             \
+  public:                                                                                                    \
+                                                                                                             \
+    static int const n_leafs  = ExprT::n_leafs;                                                              \
+                                                                                                             \
+    OP_NAME(FieldT const& s_, ExprT const& e_) : m_exp(e_),                                                  \
+                                                 m_sval(s_)                                                  \
+    { }                                                                                                      \
+                                                                                                             \
+    ValueT val() const                                                                                       \
+    {return VAL_RET;}                                                                                        \
+                                                                                                             \
+    unsigned numComps() const                                                                                \
+    { return m_exp.numComps(); }                                                                             \
+                                                                                                             \
+    void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
+    {                                                                                                        \
+      m_exp.computePartialsAndGetLeafs(DEDX, partials, leafs);                                               \
+    }                                                                                                        \
+                                                                                                             \
+  };
+
+#define EAD_PSEUDO_UNARY_OP_OPERATOR_L(OP_SYMBOL, DUMMY_S, OP_NAME)                                          \
+  template<typename Expr>                                                                                    \
+  inline                                                                                                     \
+  OP_NAME<Expr>                                                                                              \
+  operator OP_SYMBOL (ExprWrap<Expr> const& l, typename Expr::FieldT const& r)                               \
+  {                                                                                                          \
+    return OP_NAME<Expr>(r,l);                                                                               \
   }
 
-};
 
-template<typename L, typename R>
-inline
-MultExpr<L, R>
-operator* (ExprWrapp<L> const& l, ExprWrapp<R> const& r)
-{
-  return MultExpr<L, R>(l,r);
-}
+#define EAD_PSEUDO_UNARY_OP_OPERATOR_R(OP_SYMBOL, DUMMY_S, OP_NAME)                                          \
+  template<typename Expr>                                                                                    \
+  inline                                                                                                     \
+  OP_NAME<Expr>                                                                                              \
+  operator OP_SYMBOL (typename Expr::FieldT const& l, ExprWrap<Expr> const& r)                               \
+  {                                                                                                          \
+    return OP_NAME<Expr>(l,r);                                                                               \
+  }
 
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(+, +, UnaAddiExpr, m_exp.val()+m_sval, bar       ) // case:
+EAD_PSEUDO_UNARY_OP_OPERATOR_L(+, +, UnaAddiExpr)                                 // X + scalar
+EAD_PSEUDO_UNARY_OP_OPERATOR_R(+, +, UnaAddiExpr)                                 // scalar + X
 
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(*, *, UnaMultExpr, m_exp.val()*m_sval, bar*m_sval) // case:
+EAD_PSEUDO_UNARY_OP_OPERATOR_L(*, *, UnaMultExpr)                                 // X*scalar
+EAD_PSEUDO_UNARY_OP_OPERATOR_R(*, *, UnaMultExpr)                                 // scalar*X
 
+// UnaDiviExpr and UnaSubtExpr are not symmetric,
+// therefore must be implemented separately.
 
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(-, -, UnaSubtExprL, m_exp.val()-m_sval,  bar) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(-, -, UnaSubtExprR, m_sval-m_exp.val(), -bar) // expr at right
+EAD_PSEUDO_UNARY_OP_OPERATOR_L(-, -, UnaSubtExprL)                           // X - scalar
+EAD_PSEUDO_UNARY_OP_OPERATOR_R(-, -, UnaSubtExprR)                           // scalar - X
+
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(/, /, UnaDiviExprL, m_exp.val()/m_sval,  bar/m_sval                            ) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(/, /, UnaDiviExprR, m_sval/m_exp.val(), -(m_sval/(m_exp.val()*m_exp.val()))*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_OPERATOR_L(/, /, UnaDiviExprL)                                                              // X / scalar
+EAD_PSEUDO_UNARY_OP_OPERATOR_R(/, /, UnaDiviExprR)                                                              // scalar / X
+
+#undef EAD_PSEUDO_UNARY_OP_CLASS_TYPE
+#undef EAD_PSEUDO_UNARY_OP_OPERATOR_L
+#undef EAD_PSEUDO_UNARY_OP_OPERATOR_R
 
 } // endnamespace
+#endif // EAD_HPP
+
 
 
 
