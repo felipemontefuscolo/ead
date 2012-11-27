@@ -198,7 +198,6 @@ template<class T>
 T F3(T const& x)
 {
   T y = x<1 ? x : x*x;
-  
   return y;
 }
 
