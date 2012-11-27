@@ -12,7 +12,7 @@
 
 #include <functional>
 #include <vector>
-#include <iostream>
+#include <ostream>
 #include "ead_mpl.hpp"
 #include "ead_check.hpp"
 #include <cmath>
@@ -108,11 +108,28 @@ public:
     m_dx(ith) = ValueT(1.0);
   }
 
-  ValueT&    val()          { return m_val; }
-  ValueT&    dx(unsigned i) { return m_dx[i]; }
+  template<typename T>
+  DFad(ExprWrap<T> const& e_)
+  {
+    T const& e (e_);
+    m_val = e.val();
+    m_n_comps = e.numComps();
+    ValueT partials[T::n_leafs];
+    DFad const* leafs[T::n_leafs];
+    e.computePartialsAndGetLeafs(1.0, partials, leafs);
+    ValueT e_dxi;
+    for (unsigned i = 0; i<m_n_comps; ++i)
+    {
+      e_dxi = ExprDxi<T, T::n_leafs>(partials, leafs, i).result;
+      dx(i) = e_dxi;
+    }
+  }
 
-  ValueT_CR  val()          const { return m_val; }
-  ValueT_CR  dx(unsigned i) const { return m_dx[i]; }
+  ValueT&    val()            { return m_val; }
+  ValueT&    dx(unsigned i=0) { return m_dx[i]; }
+
+  ValueT_CR  val()            const { return m_val; }
+  ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
 
   unsigned numComps() const {return m_n_comps;}
 
@@ -223,6 +240,53 @@ public:
 // ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
 // =====================================================================
 //                                                                    ::
+//                        RELATIONAL OPERATORS                        ::
+//                                                                    ::
+// =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+
+#define EAD_RELAT_OP(OP)                                      \
+template<typename L, typename R>                              \
+inline                                                        \
+bool operator OP (ExprWrap<L> const& l, ExprWrap<R> const& r) \
+{                                                             \
+  return L(l).val() OP R(r).val();                            \
+}                                                             \
+                                                              \
+template<typename L, typename T>                              \
+inline                                                        \
+typename EnableIf<IsField<T,L>::value, bool >::type           \
+operator OP (ExprWrap<L> const& l, T const& r)                \
+{                                                             \
+  return L(l).val() OP r;                                     \
+}                                                             \
+                                                              \
+template<typename T, typename R>                              \
+inline                                                        \
+typename EnableIf<IsField<T,R>::value, bool >::type           \
+operator OP (T const& l, ExprWrap<R> const& r)                \
+{                                                             \
+  return l OP R(r).val();                                     \
+}
+
+EAD_RELAT_OP(==)
+EAD_RELAT_OP(!=)
+EAD_RELAT_OP(<)
+EAD_RELAT_OP(>)
+EAD_RELAT_OP(<=)
+EAD_RELAT_OP(>=)
+EAD_RELAT_OP(<<=)
+EAD_RELAT_OP(>>=)
+EAD_RELAT_OP(&)
+EAD_RELAT_OP(|)
+
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// =====================================================================
+//                                                                    ::
 //                         BINARY OPERATORS                           ::
 //                                                                    ::
 // =====================================================================
@@ -230,6 +294,20 @@ public:
 // ~~~~~~~~                                                     ~~~~~~~~
 // ~~                                                                 ~~
 
+template <typename T>
+std::ostream& operator << (std::ostream& os, ExprWrap<T> const& x_) {
+
+  T const& x = T(x_);
+
+  os << "(" << x.val() << " | " << x.dx(0);
+
+  for (unsigned i=1; i< x.numComps(); i++) {
+    os  << ", " << x.dx(i);
+  }
+
+  os << " )";
+  return os;
+}
 
 
 // DUMMY_S is not used for anything
@@ -476,31 +554,34 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow, UnaPowExprR)                                
 EAD_UNARY_OP_CLASS_TYPE(operator+, UnaPlusExpr,   X,  bar)
 EAD_UNARY_OP_CLASS_TYPE(operator-, UnaMinusExpr, -X, -bar)
 
-EAD_UNARY_OP_CLASS_TYPE(cos  , UnaCosExpr  ,  std::cos(X)  , -std::sin(X)*bar             )
-EAD_UNARY_OP_CLASS_TYPE(sin  , UnaSinExpr  ,  std::sin(X)  ,  std::cos(X)*bar             )
-EAD_UNARY_OP_CLASS_TYPE(tan  , UnaTanExpr  ,  std::tan(X)  , (1./pow(std::cos(X),2))*bar  )
-EAD_UNARY_OP_CLASS_TYPE(acos , UnaAcosExpr ,  std::acos(X) , (-1./std::sqrt(1-X*X))*bar   )
-EAD_UNARY_OP_CLASS_TYPE(asin , UnaAsinExpr ,  std::asin(X) , ( 1./std::sqrt(1-X*X))*bar   )
-EAD_UNARY_OP_CLASS_TYPE(atan , UnaAtanExpr ,  std::atan(X) , ( 1./(1+X*X))*bar            )
+EAD_UNARY_OP_CLASS_TYPE(cos  , UnaCosExpr  ,  std::cos(X)  , -std::sin(X)*bar                 )
+EAD_UNARY_OP_CLASS_TYPE(sin  , UnaSinExpr  ,  std::sin(X)  ,  std::cos(X)*bar                 )
+EAD_UNARY_OP_CLASS_TYPE(tan  , UnaTanExpr  ,  std::tan(X)  , (1./std::pow(std::cos(X),2))*bar )
+EAD_UNARY_OP_CLASS_TYPE(acos , UnaAcosExpr ,  std::acos(X) , (-1./std::sqrt(1-X*X))*bar       )
+EAD_UNARY_OP_CLASS_TYPE(asin , UnaAsinExpr ,  std::asin(X) , ( 1./std::sqrt(1-X*X))*bar       )
+EAD_UNARY_OP_CLASS_TYPE(atan , UnaAtanExpr ,  std::atan(X) , ( 1./(1+X*X))*bar                )
 
-EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr ,  std::cosh(X) ,  std::sinh(X)*bar            )
-EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr ,  std::sinh(X) ,  std::cosh(X)*bar            )
-EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./pow(std::cosh(X),2))*bar )
+EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr ,  std::cosh(X) ,  std::sinh(X)*bar                )
+EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr ,  std::sinh(X) ,  std::cosh(X)*bar                )
+EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./pow(std::cosh(X),2))*bar     )
 
-EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar              )
-EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr  ,  std::log(X)  , bar/X                        )
-EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr,  std::log10(X), bar/(X*std::log(10))         )
+EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar                  )
+EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr  ,  std::log(X)  , bar/X                            )
+EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr,  std::log10(X), bar/(X*std::log(10))             )
 
-EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr ,  std::sqrt(X) , bar/(2.*std::sqrt(X))        )
+EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr ,  std::sqrt(X) , bar/(2.*std::sqrt(X))            )
 
-EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr ,  std::ceil(X) , 0.*bar                       )
-EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar)
-EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar)
-EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr,  std::floor(X), 0.*bar                       )
-EAD_UNARY_OP_CLASS_TYPE(fmod , UnaFmodExpr ,  std::fmod(X) , bar                          )
+EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr ,  std::ceil(X) , 0.*bar                           )
+EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar    )
+EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar    )
+EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr,  std::floor(X), 0.*bar                           )
+EAD_UNARY_OP_CLASS_TYPE(fmod , UnaFmodExpr ,  std::fmod(X) , bar                              )
 
 #undef EAD_UNARY_OP_CLASS_TYPE
 #undef X
+
+
+
 
 
 } // endnamespace

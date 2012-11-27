@@ -21,7 +21,7 @@ using namespace std;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
 double const EAD_EPS = std::numeric_limits<double>::epsilon();
-double const EAD_TOL = 50000*EAD_EPS; // ~ 1.1e-10 for double
+double const EAD_TOL = 500000*EAD_EPS; // ~ 1.1e-10 for double
 
 int const max_comps = 30;
 
@@ -97,13 +97,17 @@ TEST(ADTest, CorrectValuesF1)
   int n_eqs = 3;
   int n_unk = 2;
 
+  std::cout.setf(std::ios::scientific);
+  std::cout.precision(5);
+
   vector<double> dydx_exact(n_unk*n_eqs);
+  double xvals[] = {1./3., 8./3.};
 
   // compute exact solution
   {
     vector<double> x(n_unk);
-    x[0] = 1./3.;
-    x[1] = 4./3.;
+    x[0] = xvals[0];
+    x[1] = xvals[1];
   
     dydx_exact[0*n_unk + 0] = cos(x[0])                                 ;
     dydx_exact[0*n_unk + 1] = 0.0                                       ;
@@ -117,15 +121,15 @@ TEST(ADTest, CorrectValuesF1)
   {
     vector<double> x(n_unk), y(n_eqs), dydx(n_unk*n_eqs);
     
-    x[0] = 1./3.;
-    x[1] = 4./3.;
+    x[0] = xvals[0];
+    x[1] = xvals[1];
     F1 f;
     f(x,y);
     fd_diff(f, x, dydx);
     
     for (int i = 0; i < n_eqs; ++i)
       for (int j = 0; j < n_unk; ++j) {
-        ASSERT_NEAR(dydx_exact[i*n_unk + j] , dydx[i*n_unk + j], EAD_TOL);
+        EXPECT_NEAR(dydx_exact[i*n_unk + j] , dydx[i*n_unk + j], EAD_TOL);
         cout << "FD error in dydx("<<i<<", "<<j<<") :"<< fabs(dydx_exact[i*n_unk + j]-dydx[i*n_unk + j]) << endl;
       }
     
@@ -140,19 +144,96 @@ TEST(ADTest, CorrectValuesF1)
     for (int i = 0; i < n_unk; ++i)
       x[i].setDiff(i, n_unk);
     
-    x[0] = 1./3.;
-    x[1] = 4./3.;
+    x[0] = xvals[0];
+    x[1] = xvals[1];
     F1 f;
     f(x,y);
     
     for (int i = 0; i < n_eqs; ++i)
       for (int j = 0; j < n_unk; ++j) {
-        ASSERT_NEAR(dydx_exact[i*n_unk + j] , y[i].dx(j), EAD_TOL);    
+        EXPECT_NEAR(dydx_exact[i*n_unk + j] , y[i].dx(j), EAD_TOL);    
         cout << "AD error in dydx("<<i<<", "<<j<<") :"<< fabs(dydx_exact[i*n_unk + j]-y[i].dx(j)) << endl;
       }
     
   }
 }
+
+struct F2 {
+  template<class Vec>
+  void operator() (Vec const& x, Vec &y) {
+    y[0] = -x[0] + x[1]*x[2] + x[3]/x[4] - x[5];
+    y[0] = sin(tan(cos(y[0])));
+    y[0] += x[1];
+    y[0] *= x[2];
+    y[0] -= x[3];
+    y[0] /= x[4];
+  }
+};
+
+TEST(ADTest, CorrectValuesF2)
+{
+  double x_[] = {1,2,3,4,5,6};
+  vector<double> xx(x_,x_+6);
+  vector<double> dydx_fd(6);
+  F2 f;
+  fd_diff(f, xx, dydx_fd);
+  
+  vector<adouble> x(x_,x_+6);
+  vector<adouble> y(1);
+  
+  for (uint i = 0; i < x.size(); ++i)
+    x[i].setDiff(i, x.size());
+  y[0].setDiff(-1, x.size());
+  
+  f(x,y);
+  
+  for (int i = 0; i < 6; ++i) {
+    EXPECT_NEAR(dydx_fd[i], y[0].dx(i), EAD_TOL);
+  }
+
+}
+
+
+template<class T>
+T F3(T const& x)
+{
+  T y = x<1 ? x : x*x;
+  
+  return y;
+}
+
+
+
+TEST(ADTest, NonSmoothROP)
+{
+  adouble x(0,1),y(0,1);
+  x.setDiff(0,1);
+  y = F3(x);
+  
+  EXPECT_NEAR(y.val(), 0.0,EAD_TOL);
+  EXPECT_NEAR(y.dx(), 1.0 ,EAD_TOL);
+  
+  x = -1;
+  y = F3(x);
+  EXPECT_NEAR(y.val(),-1.0,EAD_TOL);
+  EXPECT_NEAR(y.dx(), 1.0 ,EAD_TOL);
+  
+  x = 2;
+  y = F3(x);
+  EXPECT_NEAR(y.val(), 4.0,EAD_TOL);
+  EXPECT_NEAR(y.dx(), 4.0 ,EAD_TOL);
+  
+  x = 1;
+  y = F3(x);
+  EXPECT_NEAR(y.val(), 1.0,EAD_TOL);
+  EXPECT_NEAR(y.dx(), 2.0 ,EAD_TOL);
+}
+
+
+
+
+
+
 
 
 
