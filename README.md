@@ -21,5 +21,7 @@ The main reasons that have led me to develop a new package are:
 
 EAD also tries to be efficient, compact and easy to use.
 
-Any help to improve, extend, maintain, ..., is Welcome!
+This library has been tested only under Linux with gcc v4.6.
+
+Any help to improve, extend, maintain,  ..., is Welcome!
 

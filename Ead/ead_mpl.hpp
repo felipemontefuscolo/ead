@@ -74,7 +74,9 @@ struct IsField
 
 
 
-
+template <typename T> int sign(T val) {
+    return (0 < val) - (val < 0);
+}
 
 
 

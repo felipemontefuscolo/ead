@@ -50,7 +50,7 @@ struct ExprDxi<Expr,1>
 
 // all fad numbers and expressions inherits from this class.
 template<class A>
-struct ExprWrap
+struct ExprWrapper
 {
   inline
   operator A const& () const
@@ -59,7 +59,7 @@ struct ExprWrap
 
 // AD type
 template<typename T_, unsigned Mnc_>
-class DFad : public ExprWrap<DFad<T_, Mnc_> >
+class DFad : public ExprWrapper<DFad<T_, Mnc_> >
 {
   typedef DFad Self;
 public:
@@ -96,7 +96,7 @@ public:
   static int const n_leafs = 1;
 
   inline explicit
-  DFad(ValueT_CR val=ValueT(0), unsigned n_comps=0) : m_val(val), m_n_comps(n_comps), m_dx()
+  DFad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_comps(n_comps), m_dx()
   {
     EAD_CHECK(n_comps <= max_n_comps, "num comps > max num comps");
   }
@@ -105,11 +105,11 @@ public:
   DFad(ValueT_CR val, unsigned n_comps, unsigned ith) : m_val(val), m_n_comps(n_comps), m_dx()
   {
     EAD_CHECK(n_comps <= max_n_comps && ith < n_comps, "num comps > max num comps or ith >= n_comps");
-    m_dx(ith) = ValueT(1.0);
+    m_dx[ith] = 1.0;
   }
 
   template<typename T>
-  DFad(ExprWrap<T> const& e_)
+  DFad(ExprWrapper<T> const& e_)
   {
     T const& e (e_);
     m_val = e.val();
@@ -158,7 +158,7 @@ public:
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                         \
   template<class ExprT>                                  \
-  Self& operator OP (ExprWrap<ExprT> const& e_)          \
+  Self& operator OP (ExprWrapper<ExprT> const& e_)          \
   {                                                      \
     ExprT const& e (e_);                                 \
     EAD_CHECK(numComps()==e.numComps(), "incompatible dimension"); \
@@ -195,33 +195,50 @@ public:
 //     -------------------------------------------------------
 //         ----------------------------------------------
 
-  Self& operator= (FieldT const& z)
+  template<typename T>
+  inline
+  typename EnableIf<IsField<T,Self>::value, Self&>::type
+  operator= (T const& z)
   {
     this->val() = z;
+    for (unsigned i = 0; i < m_n_comps; ++i)
+      this->dx(i) = 0;
     return *this;
   }
-
-  Self& operator+= (FieldT const& z)
+  
+  template<typename T>
+  inline
+  typename EnableIf<IsField<T,Self>::value, Self&>::type
+  operator+= (T const& z)
   {
     this->val() += z;
     return *this;
   }
 
-  Self& operator-= (FieldT const& z)
+  template<typename T>
+  inline
+  typename EnableIf<IsField<T,Self>::value, Self&>::type
+  operator-= (T const& z)
   {
     this->val() -= z;
     return *this;
   }
 
-  Self& operator*= (FieldT const& z)
+  template<typename T>
+  inline
+  typename EnableIf<IsField<T,Self>::value, Self&>::type
+  operator*= (T const& z)
   {
     this->val() *= z;
-    for (int i = 0; i < m_n_comps; ++i)
+    for (unsigned i = 0; i < m_n_comps; ++i)
       this->dx(i) *= z;
     return *this;
   }
 
-  Self& operator/= (FieldT const& z)
+  template<typename T>
+  inline
+  typename EnableIf<IsField<T,Self>::value, Self&>::type
+  operator/= (T const& z)
   {
     this->val() /= z;
     for (int i = 0; i < m_n_comps; ++i)
@@ -250,7 +267,7 @@ public:
 #define EAD_RELAT_OP(OP)                                      \
 template<typename L, typename R>                              \
 inline                                                        \
-bool operator OP (ExprWrap<L> const& l, ExprWrap<R> const& r) \
+bool operator OP (ExprWrapper<L> const& l, ExprWrapper<R> const& r) \
 {                                                             \
   return L(l).val() OP R(r).val();                            \
 }                                                             \
@@ -258,7 +275,7 @@ bool operator OP (ExprWrap<L> const& l, ExprWrap<R> const& r) \
 template<typename L, typename T>                              \
 inline                                                        \
 typename EnableIf<IsField<T,L>::value, bool >::type           \
-operator OP (ExprWrap<L> const& l, T const& r)                \
+operator OP (ExprWrapper<L> const& l, T const& r)                \
 {                                                             \
   return L(l).val() OP r;                                     \
 }                                                             \
@@ -266,7 +283,7 @@ operator OP (ExprWrap<L> const& l, T const& r)                \
 template<typename T, typename R>                              \
 inline                                                        \
 typename EnableIf<IsField<T,R>::value, bool >::type           \
-operator OP (T const& l, ExprWrap<R> const& r)                \
+operator OP (T const& l, ExprWrapper<R> const& r)                \
 {                                                             \
   return l OP R(r).val();                                     \
 }
@@ -295,7 +312,7 @@ EAD_RELAT_OP(|)
 // ~~                                                                 ~~
 
 template <typename T>
-std::ostream& operator << (std::ostream& os, ExprWrap<T> const& x_) {
+std::ostream& operator << (std::ostream& os, ExprWrapper<T> const& x_) {
 
   T const& x = T(x_);
 
@@ -313,7 +330,7 @@ std::ostream& operator << (std::ostream& os, ExprWrap<T> const& x_) {
 // DUMMY_S is not used for anything
 #define EAD_BINARY_OP(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDL, DEDR)                                 \
 template<typename ExprL, typename ExprR>                                                               \
-class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<ExprL,ExprR> >                                     \
+class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<ExprL,ExprR> >                                  \
 {                                                                                                      \
 public:                                                                                                \
   typedef typename ExprL::ValueT ValueT;                                                               \
@@ -358,7 +375,7 @@ public:                                                                         
 template<typename L, typename R>                                                                       \
 inline                                                                                                 \
 OP_CLASS_NAME<L, R>                                                                                    \
-OP_FUN_NAME (ExprWrap<L> const& l, ExprWrap<R> const& r)                                               \
+OP_FUN_NAME (ExprWrapper<L> const& l, ExprWrapper<R> const& r)                                         \
 {                                                                                                      \
   return OP_CLASS_NAME<L, R>(l,r);                                                                     \
 }
@@ -370,10 +387,10 @@ EAD_BINARY_OP(operator-, BinSubtExpr, x - y, bar       ,-bar     )
 EAD_BINARY_OP(operator*, BinMultExpr, x*y  , bar*y, x*bar        )
 EAD_BINARY_OP(operator/, BinDiviExpr, x/y  , bar/y,(-x/(y*y))*bar)
 
-EAD_BINARY_OP(max, BinMaxExpr, (x<y)?y:x, ((x==y? .5 :  (x<y)?0:1))*bar, ((x==y? .5 :  (x<y)?1:0))*bar)
-EAD_BINARY_OP(min, BinMinExpr,!(x<y)?y:x, ((x==y? .5 : !(x<y)?0:1))*bar, ((x==y? .5 : !(x<y)?1:0))*bar)
-
-EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*std::log(x))
+EAD_BINARY_OP(max,  BinMaxExpr , (x<y)?y:x     , ((x==y? .5 :  (x<y)?0:1))*bar, ((x==y? .5 :  (x<y)?1:0))*bar)
+EAD_BINARY_OP(min,  BinMinExpr ,!(x<y)?y:x     , ((x==y? .5 : !(x<y)?0:1))*bar, ((x==y? .5 : !(x<y)?1:0))*bar)
+EAD_BINARY_OP(pow,  BinPowExpr , std::pow(x,y) , std::pow(x,y-1)*y*bar        , std::pow(x,y)*std::log(x)*bar)
+EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-(y==0.?0.: ((y<0)^(x<0)? std::ceil(x/y) : std::floor(x/y)) )*bar)
 
 #undef EAD_BINARY_OP
 
@@ -398,7 +415,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*s
 #define X m_exp.val()
 #define EAD_PSEUDO_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                            \
   template<typename T, typename ExprT>                                                                       \
-  class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<T,ExprT> >                                             \
+  class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<T,ExprT> >                                          \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
@@ -436,7 +453,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*s
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (ExprWrap<Expr> const& l, T const& r)                                                          \
+  OP_FUN_NAME (ExprWrapper<Expr> const& l, T const& r)                                                       \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(r,l);                                                                       \
   }
@@ -446,7 +463,7 @@ EAD_BINARY_OP(pow, BinPowExpr, std::pow(x,y), std::pow(x,y-1)*y, std::pow(x,y)*s
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (T const& l, ExprWrap<Expr> const& r)                                                          \
+  OP_FUN_NAME (T const& l, ExprWrapper<Expr> const& r)                                                       \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(l,r);                                                                       \
   }
@@ -481,10 +498,16 @@ EAD_PSEUDO_UNARY_OP_CLASS_TYPE(operator/, UnaDiviExprR, a/X, -(a/(X*X))*bar) // 
 EAD_PSEUDO_UNARY_OP_FUNCTION_L(operator/, UnaDiviExprL)                      // X / scalar
 EAD_PSEUDO_UNARY_OP_FUNCTION_R(operator/, UnaDiviExprR)                      // scalar / X
 
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow, UnaPowExprL, std::pow(X,a), a*std::pow(X,a-T(1))*bar     ) // expr at left
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow, UnaPowExprR, std::pow(a,X), std::pow(a,X)*std::log(a)*bar) // expr at right
-EAD_PSEUDO_UNARY_OP_FUNCTION_L(pow, UnaPowExprL)                                               // pow(X , scalar)
-EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow, UnaPowExprR)                                               // pow(scalar , X)
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow,  UnaPowExprL, std::pow(X,a), a*std::pow(X,a-1)*bar        ) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(pow,  UnaPowExprR, std::pow(a,X), std::pow(a,X)*std::log(a)*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(pow,  UnaPowExprL)                                               // pow(X , scalar)
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow,  UnaPowExprR)                                               // pow(scalar , X)
+
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(fmod, UnaFmodExprL, std::fmod(X,a), bar                 ) // expr at left
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(fmod, UnaFmodExprR, std::fmod(a,X), -std::floor(a/X)*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_FUNCTION_L(fmod, UnaFmodExprL)                                       // fmod(X , scalar)
+EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                                       // fmod(scalar , X)
+
 
 #undef EAD_PSEUDO_UNARY_OP_CLASS_TYPE
 #undef EAD_PSEUDO_UNARY_OP_FUNCTION_L
@@ -510,7 +533,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow, UnaPowExprR)                                
 #define X m_exp.val()
 #define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                                   \
   template<typename ExprT>                                                                                   \
-  class OP_CLASS_NAME : public ExprWrap<OP_CLASS_NAME<ExprT> >                                               \
+  class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<ExprT> >                                            \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
@@ -544,7 +567,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow, UnaPowExprR)                                
   template<typename Expr>                                                                                    \
   inline                                                                                                     \
   OP_CLASS_NAME<Expr>                                                                                        \
-  OP_FUN_NAME (ExprWrap<Expr> const& e_)                                                                     \
+  OP_FUN_NAME (ExprWrapper<Expr> const& e_)                                                                  \
   {                                                                                                          \
     return OP_CLASS_NAME<Expr>(e_);                                                                          \
   }
@@ -563,7 +586,7 @@ EAD_UNARY_OP_CLASS_TYPE(atan , UnaAtanExpr ,  std::atan(X) , ( 1./(1+X*X))*bar  
 
 EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr ,  std::cosh(X) ,  std::sinh(X)*bar                )
 EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr ,  std::sinh(X) ,  std::cosh(X)*bar                )
-EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./pow(std::cosh(X),2))*bar     )
+EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./std::pow(std::cosh(X),2))*bar)
 
 EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar                  )
 EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr  ,  std::log(X)  , bar/X                            )
@@ -575,7 +598,6 @@ EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr ,  std::ceil(X) , 0.*bar             
 EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar    )
 EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar    )
 EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr,  std::floor(X), 0.*bar                           )
-EAD_UNARY_OP_CLASS_TYPE(fmod , UnaFmodExpr ,  std::fmod(X) , bar                              )
 
 #undef EAD_UNARY_OP_CLASS_TYPE
 #undef X
@@ -585,6 +607,8 @@ EAD_UNARY_OP_CLASS_TYPE(fmod , UnaFmodExpr ,  std::fmod(X) , bar                
 
 
 } // endnamespace
+
+
 #endif // EAD_HPP
 
 
