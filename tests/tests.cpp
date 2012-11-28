@@ -241,7 +241,7 @@ TEST(EADTest, CmathUnaryFuncTest)
   EXPECT_NEAR(DY[0]     , y.dx() , EAD_TOL);
 
   // function tests at various points
-  for(double c=0.15; c<0.9; c+= 0.1201057010193)
+  for(double c=-0.6347834; c<0.9; c+= 0.1201057010193)
   {
     x.val() = c;
     X[0]    = c;
@@ -255,15 +255,97 @@ TEST(EADTest, CmathUnaryFuncTest)
     EAD_UNA_FUN_TEST(sinh )
     EAD_UNA_FUN_TEST(tanh )
     EAD_UNA_FUN_TEST(exp  )
-    EAD_UNA_FUN_TEST(log  )
-    EAD_UNA_FUN_TEST(log10)
-    EAD_UNA_FUN_TEST(sqrt )
+    if ( c > 0) {
+      EAD_UNA_FUN_TEST(log  )
+      EAD_UNA_FUN_TEST(log10)
+      EAD_UNA_FUN_TEST(sqrt )
+    }
     EAD_UNA_FUN_TEST(ceil )
     EAD_UNA_FUN_TEST(floor)
   }
 
 #undef EAD_UNA_FUN_TEST
 }
+
+
+
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// =====================================================================
+//                                                                    ::
+//                    PSEUDO-UNARY OPERATORS TEST                     ::
+//                                                                    ::
+// =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+
+
+#define EAD_DEFINE_PUN_FUNC(FunName)                           \
+  struct unaryL_##FunName {                                     \
+    double a;                                                  \
+    unaryL_##FunName(double a_) : a(a_) {}                       \
+    void operator() (vector<double> const& x, vector<double> &y) const \
+    { y[0] = FunName(x[0],a); }                                   \
+  };                                                             \
+                                                                \
+  struct unaryR_##FunName {                                     \
+    double a;                                                    \
+    unaryR_##FunName(double a_) : a(a_) {}                       \
+    void operator() (vector<double> const& x, vector<double> &y) const \
+    { y[0] = FunName(a,x[0]); }                                   \
+  };
+
+EAD_DEFINE_PUN_FUNC(max )
+EAD_DEFINE_PUN_FUNC(min )
+EAD_DEFINE_PUN_FUNC(pow )
+EAD_DEFINE_PUN_FUNC(fmod)
+
+#undef EAD_DEFINE_PUN_FUNC
+
+
+TEST(EADTest, CmathPunaryFuncTest)
+{
+  vector<double> X(1), DY(1);
+  adouble x(0,1,0);
+  adouble y(0,1);
+
+#define EAD_PUNA_FUN_TEST(FunName)              \
+  y = ead::FunName(x,a);                        \
+  fd_diff(unaryL_##FunName(a), X, DY);          \
+  EXPECT_NEAR(FunName(c,a), y.val(), EAD_TOL);   \
+  EXPECT_NEAR(DY[0]       , y.dx() , EAD_TOL) << "1st" << endl;    \
+                                                \
+  y = ead::FunName(a,x);                        \
+  fd_diff(unaryR_##FunName(a), X, DY);          \
+  EXPECT_NEAR(FunName(a,c), y.val(), EAD_TOL);   \
+  EXPECT_NEAR(DY[0]       , y.dx() , EAD_TOL) << "2nd" << endl;    \
+
+
+  // function tests at various points
+  for(double c=-0.94125124124; c<0.94125124124; c+= 2*0.1201057010193)
+  {
+    for(double a=-0.94125124124; a<0.94125124124; a+= 2*0.1201057010193)
+    {
+      x.val() = c;
+      X[0]    = c;
+      EAD_PUNA_FUN_TEST(max )
+      EAD_PUNA_FUN_TEST(min )
+      if (c>0 && a > 0) {
+        EAD_PUNA_FUN_TEST(pow )
+      }
+      if (c!=a) {
+        EAD_PUNA_FUN_TEST(fmod)
+      }
+    }
+    
+  }
+
+#undef EAD_PUNA_FUN_TEST
+}
+
+
 
 
 
@@ -330,7 +412,7 @@ TEST(EADTest, CmathBinaryFuncTest)
       }
     }
   }
-  
+
 #undef EAD_BIN_FUN_TEST
 }
 

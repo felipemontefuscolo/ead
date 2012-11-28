@@ -504,7 +504,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_L(pow,  UnaPowExprL)                               
 EAD_PSEUDO_UNARY_OP_FUNCTION_R(pow,  UnaPowExprR)                                               // pow(scalar , X)
 
 EAD_PSEUDO_UNARY_OP_CLASS_TYPE(fmod, UnaFmodExprL, std::fmod(X,a), bar                 ) // expr at left
-EAD_PSEUDO_UNARY_OP_CLASS_TYPE(fmod, UnaFmodExprR, std::fmod(a,X), -std::floor(a/X)*bar) // expr at right
+EAD_PSEUDO_UNARY_OP_CLASS_TYPE(fmod, UnaFmodExprR, std::fmod(a,X), -(X==0.?0.: ((X<0)^(a<0)? std::ceil(a/X) : std::floor(a/X)) )*bar) // expr at right
 EAD_PSEUDO_UNARY_OP_FUNCTION_L(fmod, UnaFmodExprL)                                       // fmod(X , scalar)
 EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                                       // fmod(scalar , X)
 
