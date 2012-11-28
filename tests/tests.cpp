@@ -430,6 +430,81 @@ TEST(EADTest, CmathBinaryFuncTest)
 // ~~                                                                 ~~
 
 
+TEST(EADTest, AliasTest1)
+{
+  double const c = 8./7.;
+  adouble x(c,1,0);
+  adouble y(0,1);
+  
+  y = x;
+  y = y + sin(y*y);
+  y = abs( cos(2*y + x) );
+  y = exp(sin(cos(sqrt(y))));
+  y = -y + 1.;
+  
+  EXPECT_NEAR(-0.92430621282117, y.val(), 1e-4*EAD_TOL);
+  EXPECT_NEAR(2.198729859564556, y.dx(),  1e-4*EAD_TOL);
+  
+  y = y;
+  
+  EXPECT_NEAR(-0.92430621282117, y.val(), 1e-4*EAD_TOL);
+  EXPECT_NEAR(2.198729859564556, y.dx(),  1e-4*EAD_TOL);
+}
+
+
+
+
+// ~~                                                                 ~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// =====================================================================
+//                                                                    ::
+//                          RELATIONAL OPS                            ::
+//                                                                    ::
+// =====================================================================
+// ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~
+// ~~~~~~~~                                                     ~~~~~~~~
+// ~~                                                                 ~~
+
+
+TEST(EADTest,RelationalOpsTest1)
+{
+  double const c = 8./7.;
+  adouble x(c,3,0);
+  adouble y(c,3,1);
+  adouble z(2*c,3,2);
+  adouble w(-c,3,0);
+  
+  EXPECT_TRUE (x==y);
+  EXPECT_FALSE(x==w);
+  EXPECT_TRUE (x!=z);
+  EXPECT_FALSE(x!=y);
+  EXPECT_TRUE (x <z);
+  EXPECT_FALSE(x <w);
+  EXPECT_TRUE (z >x);
+  EXPECT_FALSE(w >x);
+  EXPECT_TRUE (x<=y);
+  EXPECT_FALSE(x<=w);
+  EXPECT_TRUE (y>=x);
+  EXPECT_FALSE(w>=x);
+  
+  EXPECT_TRUE (x==c  );  EXPECT_TRUE (c==x  );
+  EXPECT_FALSE(x==-c );  EXPECT_FALSE(-c==x );
+  EXPECT_TRUE (x!=2*c);  EXPECT_TRUE (2*c!=x);
+  EXPECT_FALSE(x!=c  );  EXPECT_FALSE(c!=x  );
+  EXPECT_TRUE (x <2*c);  EXPECT_TRUE (2*c>x);
+  EXPECT_FALSE(x <-c );  EXPECT_FALSE(-c>x );
+  EXPECT_TRUE (z >c  );  EXPECT_TRUE (c< z  );
+  EXPECT_FALSE(w >c  );  EXPECT_FALSE(c< w  );
+  EXPECT_TRUE (x<=c  );  EXPECT_TRUE (c>=x );
+  EXPECT_FALSE(x<=-c );  EXPECT_FALSE(-c>=x );
+  EXPECT_TRUE (y>=c  );  EXPECT_TRUE (c<=y  );
+  EXPECT_FALSE(w>=c  );  EXPECT_FALSE(c<=w  );
+  
+  
+}
+
+
 TEST(EADTest, RectangularJacobianTestF1)
 {
   int n_eqs = 3;
