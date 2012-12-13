@@ -28,13 +28,13 @@ int main()
   
   adouble x,y;
 
-  x.setDiff(0, 1); // first argument set x as an zeroth independent variable
+  x.setDiff(0, 1); // first argument set x as an zeroth independent variable (same as x.dx(0) = 1)
                    // second argument says that the problem has one independent variable
-  
+
   x.val() = pi;    // the polynomail will be evaluated at x = pi
                    // NOTE: do not use x = pi ... this way you make x a constant
 
-  y.setDiff(-1, 1); // first argument set y as an dependent variable
+  y.setDiff(-1, 1); // first argument set all y's components to zero, making it a dependent variable 
                     // second argument says that y has one independent variable
 
 

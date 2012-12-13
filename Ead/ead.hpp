@@ -85,12 +85,6 @@ private:
   void resize(unsigned s)
   { m_n_comps = s;}
 
-  void setDxZeros()
-  {
-    for (unsigned i = 0; i < m_n_comps; ++i)
-      m_dx[i] = ValueT(0.0);
-  };
-
 public:
 
   static int const n_leafs = 1;
@@ -131,7 +125,7 @@ public:
   ValueT_CR  val()            const { return m_val; }
   ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
 
-  unsigned numComps() const {return m_n_comps;}
+  unsigned  numComps() const {return m_n_comps;}
 
   /// ith = -1 to set dx to zero
   void setDiff(int ith, unsigned n_comps)
@@ -142,6 +136,13 @@ public:
       dx(ith) = ValueT(1.0);
   }
 
+  void setDxZeros()
+  {
+    for (unsigned i = 0; i < m_n_comps; ++i)
+      m_dx[i] = ValueT(0.0);
+  };
+
+  // TODO: not for users, put it in a private area
   // bar = df/dterminal
   void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], DFad const* leafs[]) const
   {
