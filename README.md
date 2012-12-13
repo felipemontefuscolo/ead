@@ -10,7 +10,7 @@ written in C++ language. It's based on operator overload to compute
 the gradient of a function in forward mode.
 For more information about AD, see [this link](http://en.wikipedia.org/wiki/Automatic_differentiation).
 
-The implementation follow the idea of the paper
+The implementation follows the idea of the paper
 ["Efficient Expression Templates for Operator Overloading-based Automatic Differentiation"](http://arxiv.org/abs/1205.3506),
 which is implemented in the Trilinos package [Sacado](http://trilinos.sandia.gov/packages/sacado/).
 

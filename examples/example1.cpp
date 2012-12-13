@@ -6,8 +6,9 @@
 // A very simple example with polynomials
 
 
-// A define for syntax sugar.
-// 10 is the maximum num of components, not the actual size
+// A definition for syntax sugar.
+// 10 is the maximum num of components (independet variables),
+// not the actual size.
 typedef ead::DFad<double, 10> adouble;
 
 
@@ -18,7 +19,7 @@ int main()
   int const deg = 3; // polynomial degree
   
   double a[deg+1]; // Polynomail coefficients. As they ar constantes, they
-                 // can be double.
+                   // can be double.
   
   // set coefficients values
   for (int i = 0; i < deg+1; ++i)
@@ -32,7 +33,7 @@ int main()
   
   x.val() = pi;    // the polynomail will be evaluated at x = pi
                    // NOTE: do not use x = pi ... this way you make x a constant
-  
+
   y.setDiff(-1, 1); // first argument set y as an dependent variable
                     // second argument says that y has one independent variable
 
