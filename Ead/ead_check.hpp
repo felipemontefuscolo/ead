@@ -28,7 +28,7 @@
   #define EAD_CHECK(ok, mesg) ((void)0)
 #endif
 
-static
+inline
 void assertion_failed(std::string const& expr, std::string const& msg, int Line, const char File[], const char PrettyFunction[])
 {
   std::stringstream what_arg;
