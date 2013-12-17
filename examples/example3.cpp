@@ -1,19 +1,20 @@
 #include <iostream>
 #define EAD_DEBUG       // to debug
-#include "Ead/ead.hpp"
+#include "Ead/ead2.hpp"
 
 
-// A very simple example with polynomials
+// deriving a simple polynomial twice
 
 
 // Definition for syntax sugar.
 // 10 is the maximum num of components (independet variables),
 // not the actual size.
-typedef ead::DFad<double, 10> adouble;
+typedef ead::D2Fad<double, 10> adouble;
 
 
 int main()
 {
+
   const double pi = 3.14159265;
   
   int const deg = 3; // polynomial degree
@@ -28,7 +29,10 @@ int main()
   
   adouble x,y;
 
-  x.setDiff(0, 1); // Set x to be dof 0, in a 1-dof system.
+
+
+  x.setDiff(0, 1); // first argument set x as an zeroth independent variable (same as x.dx(0) = 1)
+                   // second argument says that the problem has one independent variable
 
   x.val() = pi;    // the polynomail will be evaluated at x = pi
                    // NOTE: do not use x = pi ... this way you make x a constant
@@ -49,7 +53,12 @@ int main()
   std::cout << "derivative value: \n";
   std::cout << "* AD:    " << y.dx() << std::endl;
   std::cout << "* exact: " << a[1] + 2*a[1]*x.val() +  3*a[1]*pow(x.val(),2) << std::endl << std::endl;
-  
+  std::cout << "hessian value: \n";
+  std::cout << "* AD:    " << y.d2x() << std::endl;
+  std::cout << "* exact: " << 2*a[1] +  6*a[1]*x.val() << std::endl << std::endl;
+
+/*
+*/  
 }
 
 

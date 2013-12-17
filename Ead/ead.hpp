@@ -11,7 +11,6 @@
 
 
 #include <functional>
-#include <vector>
 #include <ostream>
 #include "ead_mpl.hpp"
 #include "ead_check.hpp"
@@ -21,36 +20,10 @@ namespace ead
 {
 
 
-// Essa foi a forma mais rapida de realizar o produto escalar
-// This class compute the ith derivative of an expression
-template<typename Expr, int Nleafs>
-struct ExprDxi
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  ValueT result; // = exp.dx(i)
-  inline
-  ExprDxi(ValueT partials[], LeafType const* leafs[], int i)
-  {
-    result  = partials[0] * leafs[0]->dx(i);
-    result += ExprDxi<Expr, Nleafs-1>(partials+1, leafs+1, i).result;
-  }
-};
-
-template<typename Expr>
-struct ExprDxi<Expr,1>
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  ValueT result;
-  inline
-  ExprDxi(ValueT partials[], LeafType const* leafs[], int i) : result(partials[0] * leafs[0]->dx(i))
-  { }
-};
 
 // all fad numbers and expressions inherits from this class.
 template<class A>
-struct ExprWrapper
+struct ExprWrapper1
 {
   inline
   operator A const& () const
@@ -59,7 +32,7 @@ struct ExprWrapper
 
 // AD type
 template<typename T_, unsigned Mnc_>
-class DFad : public ExprWrapper<DFad<T_, Mnc_> >
+class DFad : public ExprWrapper1<DFad<T_, Mnc_> >
 {
   typedef DFad Self;
 public:
@@ -77,42 +50,42 @@ private:
 
   // ------------ ATTRIBUTES --------------------------
   ValueT   m_val;             // value
-  unsigned m_n_comps;
+  unsigned m_n_vars;
   ValueT   m_dx[max_n_comps]; // df/dui
   // ---------------------------------------------------
 
 
   void resize(unsigned s)
-  { m_n_comps = s;}
+  { m_n_vars = s;}
 
 public:
 
   static int const n_leafs = 1;
 
   inline explicit
-  DFad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_comps(n_comps), m_dx()
+  DFad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx()
   {
     EAD_CHECK(n_comps <= max_n_comps, "num comps > max num comps");
   }
 
   inline
-  DFad(ValueT_CR val, unsigned n_comps, unsigned ith) : m_val(val), m_n_comps(n_comps), m_dx()
+  DFad(ValueT_CR val, unsigned n_comps, unsigned ith) : m_val(val), m_n_vars(n_comps), m_dx()
   {
     EAD_CHECK(n_comps <= max_n_comps && ith < n_comps, "num comps > max num comps or ith >= n_comps");
     m_dx[ith] = 1.0;
   }
 
   template<typename T>
-  DFad(ExprWrapper<T> const& e_)
+  DFad(ExprWrapper1<T> const& e_)
   {
     T const& e (e_);
     m_val = e.val();
-    m_n_comps = e.numComps();
+    m_n_vars = e.numVars();
     ValueT partials[T::n_leafs];
     DFad const* leafs[T::n_leafs];
     e.computePartialsAndGetLeafs(1.0, partials, leafs);
     ValueT e_dxi;
-    for (unsigned i = 0; i<m_n_comps; ++i)
+    for (unsigned i = 0; i<m_n_vars; ++i)
     {
       e_dxi = ExprDxi<T, T::n_leafs>(partials, leafs, i).result;
       dx(i) = e_dxi;
@@ -125,20 +98,29 @@ public:
   ValueT_CR  val()            const { return m_val; }
   ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
 
-  unsigned  numComps() const {return m_n_comps;}
+  unsigned  numVars() const {return m_n_vars;}
 
-  /// ith = -1 to set dx to zero
-  void setDiff(int ith, unsigned n_comps)
+  void setDiff(unsigned ith, unsigned n_comps)
   {
-    m_n_comps = n_comps;
-    setDxZeros();
-    if (unsigned(ith) < n_comps)
-      dx(ith) = ValueT(1.0);
+    m_n_vars = n_comps;
+    resetDerivatives();
+    dx(ith) = ValueT(1.0);
   }
 
-  void setDxZeros()
+  void setDiff(unsigned ith)
   {
-    for (unsigned i = 0; i < m_n_comps; ++i)
+    resetDerivatives();
+    dx(ith) = ValueT(1.0);
+  }
+
+  void setNumVars(unsigned n_comps)
+  {
+    m_n_vars = n_comps;
+  }
+
+  void resetDerivatives()
+  {
+    for (unsigned i = 0; i < m_n_vars; ++i)
       m_dx[i] = ValueT(0.0);
   };
 
@@ -157,26 +139,26 @@ public:
 //         ----------------------------------------------
 
 
-#define EAD_ASSIGN_OPS(OP, IMPL)                         \
-  template<class ExprT>                                  \
-  Self& operator OP (ExprWrapper<ExprT> const& e_)          \
-  {                                                      \
-    ExprT const& e (e_);                                 \
-    EAD_CHECK(numComps()==e.numComps(), "incompatible dimension"); \
-    ValueT partials[ExprT::n_leafs];                     \
-    DFad const* leafs[ExprT::n_leafs];                   \
-    e.computePartialsAndGetLeafs(1.0, partials, leafs);  \
-    ValueT e_val = e.val();                              \
-    ValueT e_dxi;                                        \
-    for (unsigned i = 0; i<m_n_comps; ++i)               \
-    {                                                    \
+#define EAD_ASSIGN_OPS(OP, IMPL)                                         \
+  template<class ExprT>                                                  \
+  Self& operator OP (ExprWrapper1<ExprT> const& e_)                       \
+  {                                                                      \
+    ExprT const& e (e_);                                                 \
+    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");       \
+    ValueT partials[ExprT::n_leafs];                                     \
+    DFad const* leafs[ExprT::n_leafs];                                   \
+    e.computePartialsAndGetLeafs(1.0, partials, leafs);                  \
+    ValueT e_val = e.val();                                              \
+    ValueT e_dxi;                                                        \
+    for (unsigned i = 0; i<m_n_vars; ++i)                               \
+    {                                                                    \
       e_dxi = ExprDxi<ExprT, ExprT::n_leafs>(partials, leafs, i).result; \
-      IMPL                                               \
-    }                                                    \
-    this->val() OP e_val;                                \
-                                                         \
-    return *this;                                        \
-                                                         \
+      IMPL                                                               \
+    }                                                                    \
+    this->val() OP e_val;                                                \
+                                                                         \
+    return *this;                                                        \
+                                                                         \
   }
 
   EAD_ASSIGN_OPS( =, dx(i) =  e_dxi;)
@@ -202,8 +184,7 @@ public:
   operator= (T const& z)
   {
     this->val() = z;
-    for (unsigned i = 0; i < m_n_comps; ++i)
-      this->dx(i) = 0;
+    resetDerivatives();
     return *this;
   }
   
@@ -231,7 +212,7 @@ public:
   operator*= (T const& z)
   {
     this->val() *= z;
-    for (unsigned i = 0; i < m_n_comps; ++i)
+    for (unsigned i = 0; i < m_n_vars; ++i)
       this->dx(i) *= z;
     return *this;
   }
@@ -242,7 +223,7 @@ public:
   operator/= (T const& z)
   {
     this->val() /= z;
-    for (int i = 0; i < m_n_comps; ++i)
+    for (int i = 0; i < m_n_vars; ++i)
       this->dx(i) /= z;
     return *this;
   }
@@ -265,28 +246,32 @@ public:
 // ~~~~~~~~                                                     ~~~~~~~~
 // ~~                                                                 ~~
 
-#define EAD_RELAT_OP(OP)                                      \
-template<typename L, typename R>                              \
-inline                                                        \
-bool operator OP (ExprWrapper<L> const& l, ExprWrapper<R> const& r) \
-{                                                             \
-  return L(l).val() OP R(r).val();                            \
-}                                                             \
-                                                              \
-template<typename L, typename T>                              \
-inline                                                        \
-typename EnableIf<IsField<T,L>::value, bool >::type           \
-operator OP (ExprWrapper<L> const& l, T const& r)                \
-{                                                             \
-  return L(l).val() OP r;                                     \
-}                                                             \
-                                                              \
-template<typename T, typename R>                              \
-inline                                                        \
-typename EnableIf<IsField<T,R>::value, bool >::type           \
-operator OP (T const& l, ExprWrapper<R> const& r)                \
-{                                                             \
-  return l OP R(r).val();                                     \
+#define EAD_RELAT_OP(OP)                                            \
+template<typename L, typename R>                                    \
+inline                                                              \
+bool operator OP (ExprWrapper1<L> const& l_, ExprWrapper1<R> const& r_) \
+{                                                                       \
+  L const& l (l_);                                                      \
+  R const& r (r_);                                                      \
+  return l.val() OP r.val();                                            \
+}                                                                       \
+                                                                        \
+template<typename L, typename T>                                        \
+inline                                                                  \
+typename EnableIf<IsField<T,L>::value, bool >::type                     \
+operator OP (ExprWrapper1<L> const& l_, T const& r)                     \
+{                                                                       \
+  L const& l (l_);                                                      \
+  return l.val() OP r;                                                  \
+}                                                                       \
+                                                                        \
+template<typename T, typename R>                                        \
+inline                                                                  \
+typename EnableIf<IsField<T,R>::value, bool >::type                     \
+operator OP (T const& l, ExprWrapper1<R> const& r_)                     \
+{                                                                       \
+  R const& r (r_);                                                      \
+  return l OP r.val();                                                  \
 }
 
 EAD_RELAT_OP(==)
@@ -299,6 +284,8 @@ EAD_RELAT_OP(<<=)
 EAD_RELAT_OP(>>=)
 EAD_RELAT_OP(&)
 EAD_RELAT_OP(|)
+
+#undef EAD_RELAT_OP
 
 // ~~                                                                 ~~
 // ~~~~~~~~                                                     ~~~~~~~~
@@ -313,13 +300,13 @@ EAD_RELAT_OP(|)
 // ~~                                                                 ~~
 
 template <typename T>
-std::ostream& operator << (std::ostream& os, ExprWrapper<T> const& x_) {
+std::ostream& operator << (std::ostream& os, ExprWrapper1<T> const& x_) {
 
   T const& x = T(x_);
 
   os << "(" << x.val() << " | " << x.dx(0);
 
-  for (unsigned i=1; i< x.numComps(); i++) {
+  for (unsigned i=1; i< x.numVars(); i++) {
     os  << ", " << x.dx(i);
   }
 
@@ -331,7 +318,7 @@ std::ostream& operator << (std::ostream& os, ExprWrapper<T> const& x_) {
 // DUMMY_S is not used for anything
 #define EAD_BINARY_OP(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDL, DEDR)                                 \
 template<typename ExprL, typename ExprR>                                                               \
-class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<ExprL,ExprR> >                                  \
+class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprL,ExprR> >                                  \
 {                                                                                                      \
 public:                                                                                                \
   typedef typename ExprL::ValueT ValueT;                                                               \
@@ -362,8 +349,8 @@ public:                                                                         
   ValueT val() const                                                                                   \
   { return VAL_RET;}                                                                                   \
                                                                                                        \
-  unsigned numComps() const                                                                            \
-  { return m_expL.numComps(); }                                                                        \
+  unsigned numVars() const                                                                            \
+  { return m_expL.numVars(); }                                                                        \
                                                                                                        \
   void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const     \
   {                                                                                                    \
@@ -376,7 +363,7 @@ public:                                                                         
 template<typename L, typename R>                                                                       \
 inline                                                                                                 \
 OP_CLASS_NAME<L, R>                                                                                    \
-OP_FUN_NAME (ExprWrapper<L> const& l, ExprWrapper<R> const& r)                                         \
+OP_FUN_NAME (ExprWrapper1<L> const& l, ExprWrapper1<R> const& r)                                         \
 {                                                                                                      \
   return OP_CLASS_NAME<L, R>(l,r);                                                                     \
 }
@@ -416,7 +403,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
 #define X m_exp.val()
 #define EAD_PSEUDO_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                            \
   template<typename T, typename ExprT>                                                                       \
-  class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<T,ExprT> >                                          \
+  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<T,ExprT> >                                          \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
@@ -440,8 +427,8 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
     ValueT val() const                                                                                       \
     {return VAL_RET;}                                                                                        \
                                                                                                              \
-    unsigned numComps() const                                                                                \
-    { return m_exp.numComps(); }                                                                             \
+    unsigned numVars() const                                                                                \
+    { return m_exp.numVars(); }                                                                             \
                                                                                                              \
     void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
     {                                                                                                        \
@@ -454,7 +441,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (ExprWrapper<Expr> const& l, T const& r)                                                       \
+  OP_FUN_NAME (ExprWrapper1<Expr> const& l, T const& r)                                                       \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(r,l);                                                                       \
   }
@@ -464,7 +451,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (T const& l, ExprWrapper<Expr> const& r)                                                       \
+  OP_FUN_NAME (T const& l, ExprWrapper1<Expr> const& r)                                                       \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(l,r);                                                                       \
   }
@@ -534,7 +521,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
 #define X m_exp.val()
 #define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                                   \
   template<typename ExprT>                                                                                   \
-  class OP_CLASS_NAME : public ExprWrapper<OP_CLASS_NAME<ExprT> >                                            \
+  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprT> >                                            \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
@@ -555,8 +542,8 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
     ValueT val() const                                                                                       \
     {return VAL_RET;}                                                                                        \
                                                                                                              \
-    unsigned numComps() const                                                                                \
-    { return m_exp.numComps(); }                                                                             \
+    unsigned numVars() const                                                                                \
+    { return m_exp.numVars(); }                                                                             \
                                                                                                              \
     void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
     {                                                                                                        \
@@ -568,7 +555,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
   template<typename Expr>                                                                                    \
   inline                                                                                                     \
   OP_CLASS_NAME<Expr>                                                                                        \
-  OP_FUN_NAME (ExprWrapper<Expr> const& e_)                                                                  \
+  OP_FUN_NAME (ExprWrapper1<Expr> const& e_)                                                                  \
   {                                                                                                          \
     return OP_CLASS_NAME<Expr>(e_);                                                                          \
   }

@@ -1,0 +1,37 @@
+==6059== Memcheck, a memory error detector
+==6059== Copyright (C) 2002-2011, and GNU GPL'd, by Julian Seward et al.
+==6059== Using Valgrind-3.7.0 and LibVEX; rerun with -h for copyright info
+==6059== Command: ./example4.exe
+==6059== 
+ hessian_partials DFad 0x7feffff70
+ hessian_partials DFad 0x7feffff88
+ hessian_partials DFad 0x7feffff98
+ hessian_partials operator= [0] 0x7feffff70
+ hessian_partials operator= [1] 0x7feffff78
+ hessian_partials operator= [2] 0x7feffff80
+ hessian_partials operator= [3] 0x7feffff88
+ hessian_partials operator= [4] 0x7feffff90
+ hessian_partials operator= [5] 0x7feffff98
+NUM LEAFS = 3
+0, 3, 5, 0, 3, 5, 0, 3, 5, 
+function value:
+AD   : 0.296296
+exact: 0.296296
+
+function derivatives:
+AD   : 1.77778 0.111111
+exact: 1.77778 0.111111
+
+hessian:
+AD   : 2 2 0
+exact: 0.666667 0.666667 0
+
+==6059== 
+==6059== HEAP SUMMARY:
+==6059==     in use at exit: 0 bytes in 0 blocks
+==6059==   total heap usage: 1 allocs, 1 frees, 1,072 bytes allocated
+==6059== 
+==6059== All heap blocks were freed -- no leaks are possible
+==6059== 
+==6059== For counts of detected and suppressed errors, rerun with: -v
+==6059== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 2 from 2)

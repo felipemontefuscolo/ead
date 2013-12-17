@@ -24,7 +24,7 @@ RM  = rm -f
 CPPFLAGS += -I$(GTEST_DIR)/include -I$(EAD_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra
+CXXFLAGS += -g -Wall -Wextra -pedantic
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -65,17 +65,19 @@ gtest_main.a : gtest-all.o gtest_main.o
 CPPSOURCES = $(wildcard *.cpp)
 TOBJECTS = $(CPPSOURCES:.cpp=.o)
 
-all: gtest.a gtest_main.a $(CPPSOURCES:.cpp=.o) alltests.exe
+all: gtest.a gtest_main.a $(CPPSOURCES:.cpp=.o) $(CPPSOURCES:.cpp=.exe)
 
 %.o: %.cpp $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< $(LDFLAGS) -o $@
 
+%.exe: %.o $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS)    $< $(LDFLAGS) -o $@ gtest.a gtest_main.a
 
-alltests.exe: $(TOBJECTS) gtest.a gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TOBJECTS) -o $@ $(LDFLAGS) gtest.a gtest_main.a
-	@echo 
-	@echo all tests successfully compiled
-	@echo 
+#alltests.exe: $(TOBJECTS) gtest.a gtest_main.a
+#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TOBJECTS) -o $@ $(LDFLAGS) gtest.a gtest_main.a
+#	@echo 
+#	@echo all tests successfully compiled
+#	@echo 
 
 clean:
 	$(RM) *.o *.d *.exe *~ gtest.a gtest_main.a

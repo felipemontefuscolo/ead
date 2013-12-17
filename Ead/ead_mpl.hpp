@@ -79,7 +79,32 @@ template <typename T> int sign(T val) {
 }
 
 
+// Essa foi a forma mais rapida de realizar o produto escalar
+// This class compute the ith derivative of an expression
+template<typename Expr, int Nleafs>
+struct ExprDxi
+{
+  typedef typename Expr::ValueT ValueT;
+  typedef typename Expr::LeafType LeafType;
+  ValueT result; // = exp.dx(i)
+  inline
+  ExprDxi(ValueT partials[], LeafType const* leafs[], int i)
+  {
+    result  = partials[0] * leafs[0]->dx(i);
+    result += ExprDxi<Expr, Nleafs-1>(partials+1, leafs+1, i).result;
+  }
+};
 
+template<typename Expr>
+struct ExprDxi<Expr,1>
+{
+  typedef typename Expr::ValueT ValueT;
+  typedef typename Expr::LeafType LeafType;
+  ValueT result;
+  inline
+  ExprDxi(ValueT partials[], LeafType const* leafs[], int i) : result(partials[0] * leafs[0]->dx(i))
+  { }
+};
 
 
 

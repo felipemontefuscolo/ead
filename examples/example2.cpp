@@ -1,6 +1,7 @@
 #include <iostream>
 #define EAD_DEBUG       // to debug
 #include "Ead/ead.hpp"
+#include <vector>
 
 using namespace std;
 
@@ -46,5 +47,12 @@ int main()
     std::cout << std::endl;
   }
   std::cout << std::endl;
+  
+  std::cout << "Exact Jacobian:\n\n";
+  std::cout << cos(x[0].val()) << " " << 0. << std::endl
+            << 2*x[1].val()*exp(2*x[0].val()*x[1].val()) << " " << 2*x[0].val()*exp(2*x[0].val()*x[1].val())<< std::endl
+            << x[0].val()/sqrt(pow(x[0].val(),2) + 2.*pow(x[1].val(),2)) << " " << 2.*x[1].val()/sqrt(pow(x[0].val(),2) + 2.*pow(x[1].val(),2))
+            << std::endl << std::endl;
+  
   
 }
