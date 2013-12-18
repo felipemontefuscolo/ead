@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>      // std::setprecision
+#include "include/adept.h"
 
 using namespace std;
 using namespace ead;
@@ -111,6 +112,40 @@ inline void element_residue_exact(double u_[], double R_[], double J_[])
 }
 
 
+void element_residue_adept(double u_[], double R_[], double J_[])
+{
+  using adept::adouble;
+  adept::Stack stack;
+
+  adept::adouble u[Npts]; // adept
+  
+  adept::set_values(&u[0], Npts, u_);
+  stack.new_recording();
+
+  adouble R[Npts];
+
+  // residue
+  for (int q = 0; q < Nqp; ++q)
+  {
+    adouble uqp(u[0]*Phi[0][q]);
+    
+    for (int j = 1; j < Npts; ++j)
+      uqp += u[j]*Phi[j][q];
+
+    adouble sqrt_u = sqrt(uqp);
+
+    for (int i = 0; i < Npts; ++i)
+      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
+  }
+  
+  stack.independent(&u[0], Npts);
+  stack.dependent(&R[0], Npts);
+  stack.jacobian(J_);
+  
+  for (int i = 0; i < Npts; ++i)
+    R_[i] = R[i].value();
+}
+
 int main(int argc, char *argv[])
 {
   int N_iterations = int(1e+3);
@@ -169,13 +204,29 @@ int main(int argc, char *argv[])
   cout << "EXACT:\n";
   print_jac(J);
   
+  // ============================================================
+
+  begin = clock();
+  
+  for (int i = 0; i < N_iterations; ++i)
+    element_residue_adept(u, R, J);
+
+  end = clock();
+  double elapsed_adept = double(end - begin) / CLOCKS_PER_SEC;
+  
+  cout << "ADEPT:\n";
+  print_jac(J);
   
   // ====================== TIMES ============================
 
   cout << "Time elapsed:\n";
   cout << "EAD: "; cout << std::setprecision(9) << elapsed_ad;
   cout << endl << endl;
-    
+  
+  cout << "Time elapsed:\n";
+  cout << "ADEPT: "; cout << std::setprecision(9) << elapsed_adept;
+  cout << endl << endl;  
+  
   cout << "Time elapsed:\n";
   cout << "EXACT: "; cout << std::setprecision(9) << elapsed_ex;
   cout << endl << endl;
