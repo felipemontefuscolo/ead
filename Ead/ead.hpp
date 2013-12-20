@@ -150,10 +150,10 @@ public:
     LeafData leaves[ExprT::n_leafs];                                     \
     e.computePartialsAndGetLeaves(1.0, leaves);                          \
     ValueT e_val = e.val();                                              \
-    ValueT e_dx[max_n_comps];                                            \
+    ValueT e_dxi;                                            \
     for (unsigned i = 0; i<m_n_vars; ++i)                                \
     {                                                                    \
-      e_dx[i] = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;         \
+      e_dxi = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;         \
       IMPL                                                               \
     }                                                                    \
     this->val() OP e_val;                                                \
