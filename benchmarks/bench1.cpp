@@ -73,6 +73,7 @@ void element_residue_ad(double u_[], double R_[], double J_[])
 }
 
 
+
 inline void element_residue_exact(double u_[], double R_[], double J_[])
 {
   double u[Npts], *R = R_, *J = J_;

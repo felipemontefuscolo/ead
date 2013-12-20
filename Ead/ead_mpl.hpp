@@ -78,31 +78,39 @@ template <typename T> int sign(T val) {
     return (0 < val) - (val < 0);
 }
 
+template<class Fad, class Value>
+struct LeafData_
+{
+  Value partial;
+  Fad const* ptr;
+};
 
 // Essa foi a forma mais rapida de realizar o produto escalar
 // This class compute the ith derivative of an expression
-template<typename Expr, int Nleafs>
+template<typename Fad, int Nleafs>
 struct ExprDxi
 {
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
+  typedef typename Fad::ValueT ValueT;
+  typedef typename Fad::LeafType LeafType;
+  typedef          LeafData_<Fad, ValueT> LeafData;
   ValueT result; // = exp.dx(i)
   inline
-  ExprDxi(ValueT partials[], LeafType const* leafs[], int i)
+  ExprDxi(LeafData const* leaves, int i)
   {
-    result  = partials[0] * leafs[0]->dx(i);
-    result += ExprDxi<Expr, Nleafs-1>(partials+1, leafs+1, i).result;
+    result  = leaves[0].partial * leaves[0].ptr->dx(i);
+    result += ExprDxi<Fad, Nleafs-1>(leaves+1, i).result;
   }
 };
 
-template<typename Expr>
-struct ExprDxi<Expr,1>
+template<typename Fad>
+struct ExprDxi<Fad,1>
 {
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
+  typedef typename Fad::ValueT ValueT;
+  typedef typename Fad::LeafType LeafType;
+  typedef          LeafData_<Fad, ValueT> LeafData;
   ValueT result;
   inline
-  ExprDxi(ValueT partials[], LeafType const* leafs[], int i) : result(partials[0] * leafs[0]->dx(i))
+  ExprDxi(LeafData const* leaves, int i) : result(leaves[0].partial * leaves[0].ptr->dx(i))
   { }
 };
 

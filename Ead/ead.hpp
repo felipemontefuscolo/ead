@@ -45,6 +45,9 @@ public:
   typedef typename RetTrivial<ValueT>::const_type ValueT_CR;
 
   typedef DFad LeafType;
+
+  typedef LeafData_<Self, ValueT> LeafData;
+
   static const unsigned max_n_comps = Mnc_;
 private:
 
@@ -81,13 +84,12 @@ public:
     T const& e (e_);
     m_val = e.val();
     m_n_vars = e.numVars();
-    ValueT partials[T::n_leafs];
-    DFad const* leafs[T::n_leafs];
-    e.computePartialsAndGetLeafs(1.0, partials, leafs);
+    LeafData leaves[T::n_leafs];
+    e.computePartialsAndGetLeaves(1.0, leaves);
     ValueT e_dxi;
     for (unsigned i = 0; i<m_n_vars; ++i)
     {
-      e_dxi = ExprDxi<T, T::n_leafs>(partials, leafs, i).result;
+      e_dxi = ExprDxi<Self, T::n_leafs>(leaves, i).result;
       dx(i) = e_dxi;
     }
   }
@@ -126,10 +128,10 @@ public:
 
   // TODO: not for users, put it in a private area
   // bar = df/dterminal
-  void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], DFad const* leafs[]) const
+  void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const
   {
-    partials[0] = bar;
-    leafs[0] = this;
+    leaves[0].partial = bar;
+    leaves[0].ptr = this;
   }
 
 //         ----------------------------------------------
@@ -141,18 +143,17 @@ public:
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                                         \
   template<class ExprT>                                                  \
-  Self& operator OP (ExprWrapper1<ExprT> const& e_)                       \
+  Self& operator OP (ExprWrapper1<ExprT> const& e_)                      \
   {                                                                      \
     ExprT const& e (e_);                                                 \
-    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");       \
-    ValueT partials[ExprT::n_leafs];                                     \
-    DFad const* leafs[ExprT::n_leafs];                                   \
-    e.computePartialsAndGetLeafs(1.0, partials, leafs);                  \
+    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");         \
+    LeafData leaves[ExprT::n_leafs];                                     \
+    e.computePartialsAndGetLeaves(1.0, leaves);                          \
     ValueT e_val = e.val();                                              \
-    ValueT e_dxi;                                                        \
-    for (unsigned i = 0; i<m_n_vars; ++i)                               \
+    ValueT e_dx[max_n_comps];                                            \
+    for (unsigned i = 0; i<m_n_vars; ++i)                                \
     {                                                                    \
-      e_dxi = ExprDxi<ExprT, ExprT::n_leafs>(partials, leafs, i).result; \
+      e_dx[i] = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;         \
       IMPL                                                               \
     }                                                                    \
     this->val() OP e_val;                                                \
@@ -187,7 +188,7 @@ public:
     resetDerivatives();
     return *this;
   }
-  
+
   template<typename T>
   inline
   typename EnableIf<IsField<T,Self>::value, Self&>::type
@@ -318,13 +319,14 @@ std::ostream& operator << (std::ostream& os, ExprWrapper1<T> const& x_) {
 // DUMMY_S is not used for anything
 #define EAD_BINARY_OP(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDL, DEDR)                                 \
 template<typename ExprL, typename ExprR>                                                               \
-class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprL,ExprR> >                                  \
+class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprL,ExprR> >                                 \
 {                                                                                                      \
 public:                                                                                                \
   typedef typename ExprL::ValueT ValueT;                                                               \
   typedef typename ExprL::FieldT FieldT;                                                               \
   typedef typename ExprL::ValueT_CR ValueT_CR;                                                         \
   typedef typename ExprL::LeafType LeafType;                                                           \
+  typedef typename ExprL::LeafData LeafData;                                                           \
                                                                                                        \
 private:                                                                                               \
                                                                                                        \
@@ -349,13 +351,13 @@ public:                                                                         
   ValueT val() const                                                                                   \
   { return VAL_RET;}                                                                                   \
                                                                                                        \
-  unsigned numVars() const                                                                            \
-  { return m_expL.numVars(); }                                                                        \
+  unsigned numVars() const                                                                             \
+  { return m_expL.numVars(); }                                                                         \
                                                                                                        \
-  void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const     \
+  void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                             \
   {                                                                                                    \
-    m_expL.computePartialsAndGetLeafs(DEDL, partials, leafs);                                          \
-    m_expR.computePartialsAndGetLeafs(DEDR, partials + n_leafs1, leafs + n_leafs1);                    \
+    m_expL.computePartialsAndGetLeaves(DEDL, leaves);                                                  \
+    m_expR.computePartialsAndGetLeaves(DEDR, leaves + n_leafs1);                                       \
   }                                                                                                    \
                                                                                                        \
 };                                                                                                     \
@@ -363,7 +365,7 @@ public:                                                                         
 template<typename L, typename R>                                                                       \
 inline                                                                                                 \
 OP_CLASS_NAME<L, R>                                                                                    \
-OP_FUN_NAME (ExprWrapper1<L> const& l, ExprWrapper1<R> const& r)                                         \
+OP_FUN_NAME (ExprWrapper1<L> const& l, ExprWrapper1<R> const& r)                                       \
 {                                                                                                      \
   return OP_CLASS_NAME<L, R>(l,r);                                                                     \
 }
@@ -410,6 +412,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
     typedef typename ExprT::FieldT FieldT;                                                                   \
     typedef typename ExprT::ValueT_CR ValueT_CR;                                                             \
     typedef typename ExprT::LeafType LeafType;                                                               \
+    typedef typename ExprT::LeafData LeafData;                                                           \
                                                                                                              \
   private:                                                                                                   \
     ExprT const& m_exp;                                                                                      \
@@ -430,9 +433,9 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
     unsigned numVars() const                                                                                \
     { return m_exp.numVars(); }                                                                             \
                                                                                                              \
-    void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
+    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const         \
     {                                                                                                        \
-      m_exp.computePartialsAndGetLeafs(DEDX, partials, leafs);                                               \
+      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                               \
     }                                                                                                        \
                                                                                                              \
   };
@@ -528,6 +531,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
     typedef typename ExprT::FieldT FieldT;                                                                   \
     typedef typename ExprT::ValueT_CR ValueT_CR;                                                             \
     typedef typename ExprT::LeafType LeafType;                                                               \
+    typedef typename ExprT::LeafData LeafData;                                                               \
                                                                                                              \
   private:                                                                                                   \
     ExprT const& m_exp;                                                                                      \
@@ -545,9 +549,9 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
     unsigned numVars() const                                                                                \
     { return m_exp.numVars(); }                                                                             \
                                                                                                              \
-    void computePartialsAndGetLeafs(ValueT_CR bar, ValueT partials[], LeafType const* leafs[]) const         \
+    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const         \
     {                                                                                                        \
-      m_exp.computePartialsAndGetLeafs(DEDX, partials, leafs);                                               \
+      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                               \
     }                                                                                                        \
                                                                                                              \
   };                                                                                                         \
