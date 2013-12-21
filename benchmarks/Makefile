@@ -13,7 +13,8 @@ ADEPT_DIR=/home/felipe/libs/adept
 CPPFLAGS += -I$(EAD_DIR) -I $(ADEPT_DIR)
 # Flags passed to the C++ compiler.
 #CXXFLAGS += -pg -g -Wall -Wextra
-CXXFLAGS += -O3 -march=native -mfpmath=sse -Wall -Wextra -DNDEBUG
+#CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -ftree-vectorizer-verbose=5 -Wall -Wextra -DNDEBUG
+CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -Wall -Wextra -DNDEBUG
 #CXXFLAGS += -O2 -march=native -Wall -Wextra
 
 LDFLAGS+= -L $(ADEPT_DIR)/lib -ladept

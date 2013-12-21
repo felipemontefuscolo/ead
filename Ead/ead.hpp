@@ -79,6 +79,7 @@ public:
   }
 
   template<typename T>
+  inline
   DFad(ExprWrapper1<T> const& e_)
   {
     T const& e (e_);
@@ -94,11 +95,11 @@ public:
     }
   }
 
-  ValueT&    val()            { return m_val; }
-  ValueT&    dx(unsigned i=0) { return m_dx[i]; }
+  inline ValueT&    val()            { return m_val; }
+  inline ValueT&    dx(unsigned i=0) { return m_dx[i]; }
 
-  ValueT_CR  val()            const { return m_val; }
-  ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
+  inline ValueT_CR  val()            const { return m_val; }
+  inline ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
 
   unsigned  numVars() const {return m_n_vars;}
 
@@ -120,7 +121,7 @@ public:
     m_n_vars = n_comps;
   }
 
-  void resetDerivatives()
+  inline void resetDerivatives()
   {
     for (unsigned i = 0; i < m_n_vars; ++i)
       m_dx[i] = ValueT(0.0);
@@ -128,7 +129,7 @@ public:
 
   // TODO: not for users, put it in a private area
   // bar = df/dterminal
-  void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const
+  inline void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const
   {
     leaves[0].partial = bar;
     leaves[0].ptr = this;
@@ -143,6 +144,7 @@ public:
 
 #define EAD_ASSIGN_OPS(OP, IMPL)                                         \
   template<class ExprT>                                                  \
+  inline                                                                 \
   Self& operator OP (ExprWrapper1<ExprT> const& e_)                      \
   {                                                                      \
     ExprT const& e (e_);                                                 \
@@ -150,10 +152,10 @@ public:
     LeafData leaves[ExprT::n_leafs];                                     \
     e.computePartialsAndGetLeaves(1.0, leaves);                          \
     ValueT e_val = e.val();                                              \
-    ValueT e_dxi;                                            \
+    ValueT e_dxi;                                                        \
     for (unsigned i = 0; i<m_n_vars; ++i)                                \
     {                                                                    \
-      e_dxi = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;         \
+      e_dxi = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;           \
       IMPL                                                               \
     }                                                                    \
     this->val() OP e_val;                                                \
@@ -342,18 +344,22 @@ public:                                                                         
   static int const n_leafs2 = ExprR::n_leafs;                                                          \
   static int const n_leafs  = n_leafs1 + n_leafs2;                                                     \
                                                                                                        \
+  inline                                                                                               \
   OP_CLASS_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     \
                                                       m_expR(rhs),                                     \
                                                       x(lhs.val()),                                    \
                                                       y(rhs.val())                                     \
   { }                                                                                                  \
                                                                                                        \
+  inline                                                                                               \
   ValueT val() const                                                                                   \
   { return VAL_RET;}                                                                                   \
                                                                                                        \
+  inline                                                                                               \
   unsigned numVars() const                                                                             \
   { return m_expL.numVars(); }                                                                         \
                                                                                                        \
+  inline                                                                                               \
   void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                             \
   {                                                                                                    \
     m_expL.computePartialsAndGetLeaves(DEDL, leaves);                                                  \
@@ -405,14 +411,14 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
 #define X m_exp.val()
 #define EAD_PSEUDO_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                            \
   template<typename T, typename ExprT>                                                                       \
-  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<T,ExprT> >                                          \
+  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<T,ExprT> >                                         \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
     typedef typename ExprT::FieldT FieldT;                                                                   \
     typedef typename ExprT::ValueT_CR ValueT_CR;                                                             \
     typedef typename ExprT::LeafType LeafType;                                                               \
-    typedef typename ExprT::LeafData LeafData;                                                           \
+    typedef typename ExprT::LeafData LeafData;                                                               \
                                                                                                              \
   private:                                                                                                   \
     ExprT const& m_exp;                                                                                      \
@@ -423,19 +429,23 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
                                                                                                              \
     static int const n_leafs  = ExprT::n_leafs;                                                              \
                                                                                                              \
+    inline                                                                                                   \
     OP_CLASS_NAME(T const& s_, ExprT const& e_) : m_exp(e_),                                                 \
                                                   a(s_)                                                      \
     { }                                                                                                      \
                                                                                                              \
+    inline                                                                                                   \
     ValueT val() const                                                                                       \
     {return VAL_RET;}                                                                                        \
                                                                                                              \
-    unsigned numVars() const                                                                                \
-    { return m_exp.numVars(); }                                                                             \
+    inline                                                                                                   \
+    unsigned numVars() const                                                                                 \
+    { return m_exp.numVars(); }                                                                              \
                                                                                                              \
-    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const         \
+    inline                                                                                                   \
+    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                                 \
     {                                                                                                        \
-      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                               \
+      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                                       \
     }                                                                                                        \
                                                                                                              \
   };
@@ -444,7 +454,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (ExprWrapper1<Expr> const& l, T const& r)                                                       \
+  OP_FUN_NAME (ExprWrapper1<Expr> const& l, T const& r)                                                      \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(r,l);                                                                       \
   }
@@ -454,7 +464,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
   template<typename Expr, typename T>                                                                        \
   inline                                                                                                     \
   typename EnableIf<IsField<T,Expr>::value,OP_CLASS_NAME<T,Expr> >::type                                     \
-  OP_FUN_NAME (T const& l, ExprWrapper1<Expr> const& r)                                                       \
+  OP_FUN_NAME (T const& l, ExprWrapper1<Expr> const& r)                                                      \
   {                                                                                                          \
     return OP_CLASS_NAME<T,Expr>(l,r);                                                                       \
   }
@@ -524,7 +534,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
 #define X m_exp.val()
 #define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX)                                   \
   template<typename ExprT>                                                                                   \
-  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprT> >                                            \
+  class OP_CLASS_NAME : public ExprWrapper1<OP_CLASS_NAME<ExprT> >                                           \
   {                                                                                                          \
   public:                                                                                                    \
     typedef typename ExprT::ValueT ValueT;                                                                   \
@@ -540,18 +550,22 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
                                                                                                              \
     static int const n_leafs  = ExprT::n_leafs;                                                              \
                                                                                                              \
+    inline                                                                                                   \
     OP_CLASS_NAME(ExprT const& e_) : m_exp(e_)                                                               \
     { }                                                                                                      \
                                                                                                              \
+    inline                                                                                                   \
     ValueT val() const                                                                                       \
     {return VAL_RET;}                                                                                        \
                                                                                                              \
-    unsigned numVars() const                                                                                \
-    { return m_exp.numVars(); }                                                                             \
+    inline                                                                                                   \
+    unsigned numVars() const                                                                                 \
+    { return m_exp.numVars(); }                                                                              \
                                                                                                              \
-    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const         \
+    inline                                                                                                   \
+    void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                                 \
     {                                                                                                        \
-      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                               \
+      m_exp.computePartialsAndGetLeaves(DEDX, leaves);                                                       \
     }                                                                                                        \
                                                                                                              \
   };                                                                                                         \
@@ -559,7 +573,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
   template<typename Expr>                                                                                    \
   inline                                                                                                     \
   OP_CLASS_NAME<Expr>                                                                                        \
-  OP_FUN_NAME (ExprWrapper1<Expr> const& e_)                                                                  \
+  OP_FUN_NAME (ExprWrapper1<Expr> const& e_)                                                                 \
   {                                                                                                          \
     return OP_CLASS_NAME<Expr>(e_);                                                                          \
   }
@@ -580,11 +594,11 @@ EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr ,  std::cosh(X) ,  std::sinh(X)*bar  
 EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr ,  std::sinh(X) ,  std::cosh(X)*bar                )
 EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr ,  std::tanh(X) , (1./std::pow(std::cosh(X),2))*bar)
 
-EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar                  )
+//EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr  ,  std::exp(X)  , std::exp(X)*bar                  ) // specialized
 EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr  ,  std::log(X)  , bar/X                            )
 EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr,  std::log10(X), bar/(X*std::log(10))             )
 
-EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr ,  std::sqrt(X) , bar/(2.*std::sqrt(X))            )
+//EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr ,  std::sqrt(X) , bar/(2.*std::sqrt(X))            )
 
 EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr ,  std::ceil(X) , 0.*bar                           )
 EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))*bar    )
@@ -592,10 +606,107 @@ EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1
 EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr,  std::floor(X), 0.*bar                           )
 
 #undef EAD_UNARY_OP_CLASS_TYPE
+//#undef X
+
+// These class are implemented separately because they need some optimization
+template<typename ExprT>
+class UnaExpExpr : public ExprWrapper1<UnaExpExpr<ExprT> >
+{
+public:
+  typedef typename ExprT::ValueT ValueT;
+  typedef typename ExprT::FieldT FieldT;
+  typedef typename ExprT::ValueT_CR ValueT_CR;
+  typedef typename ExprT::LeafType LeafType;
+  typedef typename ExprT::LeafData LeafData;
+
+private:
+  ExprT const& m_exp;
+  ValueT m_val;
+
+public:
+
+  static int const n_leafs  = ExprT::n_leafs;
+
+  inline
+  UnaExpExpr(ExprT const& e_) : m_exp(e_), m_val(std::exp(X))
+  { }
+
+  inline
+  ValueT val() const
+  {return m_val;}
+
+  inline
+  unsigned numVars() const
+  { return m_exp.numVars(); }
+
+  inline
+  void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const
+  {
+    m_exp.computePartialsAndGetLeaves(m_val*bar, leaves);
+  }
+
+};
+
+template<typename Expr>
+inline
+UnaExpExpr<Expr>
+exp (ExprWrapper1<Expr> const& e_)
+{
+  return UnaExpExpr<Expr>(e_);
+}
+
+
+
+template<typename ExprT>
+class UnaSqrtExpr : public ExprWrapper1<UnaSqrtExpr<ExprT> >
+{
+public:
+  typedef typename ExprT::ValueT ValueT;
+  typedef typename ExprT::FieldT FieldT;
+  typedef typename ExprT::ValueT_CR ValueT_CR;
+  typedef typename ExprT::LeafType LeafType;
+  typedef typename ExprT::LeafData LeafData;
+
+private:
+  ExprT const& m_exp;
+  ValueT m_val;
+public:
+
+  static int const n_leafs  = ExprT::n_leafs;
+
+  inline
+  UnaSqrtExpr(ExprT const& e_) : m_exp(e_), m_val(std::sqrt(X))
+  { }
+
+  inline
+  ValueT val() const
+  {return m_val;}
+
+  inline
+  unsigned numVars() const
+  { return m_exp.numVars(); }
+
+  inline
+  void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const
+  {
+    m_exp.computePartialsAndGetLeaves(bar/(2*m_val), leaves);
+  }
+
+};
+
+template<typename Expr>
+inline
+UnaSqrtExpr<Expr>
+sqrt (ExprWrapper1<Expr> const& e_)
+{
+  return UnaSqrtExpr<Expr>(e_);
+}
+
+
+
+
+
 #undef X
-
-
-
 
 
 } // endnamespace

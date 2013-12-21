@@ -43,7 +43,7 @@ void element_residue_ad(double u_[], double R_[], double J_[])
   
   for (int i = 0; i < Npts; ++i)
   {
-    u[i].val() = (i+1.)/2.; // random values
+    u[i].val() = u_[i]; // random values
     u[i].setDiff(i, Npts);
     R[i].setNumVars(Npts);
   }
@@ -56,10 +56,11 @@ void element_residue_ad(double u_[], double R_[], double J_[])
       uqp += u[j]*Phi[j][q];
     
     adouble sqrt_u (sqrt(uqp));
+    adouble exp_u (exp(uqp));
 
     for (int i = 0; i < Npts; ++i)
     {
-      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
+      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u + exp_u) * Phi[i][q] * weight[q];
     }
   }
   
@@ -73,8 +74,7 @@ void element_residue_ad(double u_[], double R_[], double J_[])
 }
 
 
-
-inline void element_residue_exact(double u_[], double R_[], double J_[])
+void element_residue_exact(double u_[], double R_[], double J_[])
 {
   double u[Npts], *R = R_, *J = J_;
   
@@ -95,15 +95,16 @@ inline void element_residue_exact(double u_[], double R_[], double J_[])
       uqp += u[j]*Phi[j][q];
 
     double sqrt_u = sqrt(uqp);
+    double exp_u  = exp(uqp);
 
     for (int i = 0; i < Npts; ++i)
     {
       
-      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
+      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u + exp_u) * Phi[i][q] * weight[q];
       
       for (int j = 0; j < Npts; ++j)
       {
-        J[i*Npts + j] += (1. + 1.5*sqrt_u + .5/sqrt_u ) * Phi[j][q] * Phi[i][q] * weight[q];
+        J[i*Npts + j] += (1. + 1.5*sqrt_u + .5/sqrt_u + exp_u) * Phi[j][q] * Phi[i][q] * weight[q];
       }
     }
   }
@@ -140,9 +141,11 @@ int main(int argc, char *argv[])
 
   for (int i = 0; i < Npts; ++i)
   {
-    u[i] = (i+1.)/2.; // random values
-    X[i] = double((i+1)*(i+2))/3.; // random values
+    u[i] = double(rand())/RAND_MAX; // random values
+    X[i] = 10*double(rand())/RAND_MAX; // random values
   }
+
+
 
   // ============================================================
   
@@ -207,6 +210,10 @@ int main(int argc, char *argv[])
   //cout << endl << endl;
   
 }
+
+
+
+
 
 
 template<class TensorType, class Double>
