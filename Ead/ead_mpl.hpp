@@ -85,20 +85,28 @@ struct LeafData_
   Fad const* ptr;
 };
 
+template<class Fad, class Value>
+struct LeafData2_
+{
+  Value partial;
+  Fad const* ptr;
+  Value hes_dig;
+};
+
 // Essa foi a forma mais rapida de realizar o produto escalar
 // This class compute the ith derivative of an expression
-template<typename Fad, int Nleafs>
+template<typename Fad, int Nleaves>
 struct ExprDxi
 {
   typedef typename Fad::ValueT ValueT;
   typedef typename Fad::LeafType LeafType;
-  typedef          LeafData_<Fad, ValueT> LeafData;
+  typedef typename Fad::LeafData LeafData;
   ValueT result; // = exp.dx(i)
   inline
   ExprDxi(LeafData const* leaves, int i)
   {
     result  = leaves[0].partial * leaves[0].ptr->dx(i);
-    result += ExprDxi<Fad, Nleafs-1>(leaves+1, i).result;
+    result += ExprDxi<Fad, Nleaves-1>(leaves+1, i).result;
   }
 };
 
@@ -107,7 +115,7 @@ struct ExprDxi<Fad,1>
 {
   typedef typename Fad::ValueT ValueT;
   typedef typename Fad::LeafType LeafType;
-  typedef          LeafData_<Fad, ValueT> LeafData;
+  typedef typename Fad::LeafData LeafData;
   ValueT result;
   inline
   ExprDxi(LeafData const* leaves, int i) : result(leaves[0].partial * leaves[0].ptr->dx(i))
@@ -119,7 +127,7 @@ struct ExprDxi<Fad,1>
 
 // Essa foi a forma mais rapida de realizar o produto escalar
 // This class compute the ith derivative of an expression
-template<typename Expr, int Nleafs>
+template<typename Expr, int Nleaves>
 struct Dot
 {
   typedef typename Expr::ValueT ValueT;
@@ -129,7 +137,7 @@ struct Dot
   Dot(ValueT partials[], ValueT dxi[])
   {
     result  = partials[0] * dxi[0];
-    result += Dot<Expr, Nleafs-1>(partials+1, dxi+1).result;
+    result += Dot<Expr, Nleaves-1>(partials+1, dxi+1).result;
   }
 };
 
@@ -150,16 +158,16 @@ struct Dot<Expr,1>
 
 // Essa foi a forma mais rapida de realizar o produto escalar
 // This class compute the ith derivative of an expression
-template<typename Expr, int Nleafs>
+template<typename Expr, int Nleaves>
 struct Getter
 {
   typedef typename Expr::ValueT ValueT;
   typedef typename Expr::LeafType LeafType;
   inline
-  Getter(ValueT partials[], LeafType const* leafs[], int i)
+  Getter(ValueT partials[], LeafType const* leaves[], int i)
   {
-    partials[0] = leafs[0]->dx(i);
-    Getter<Expr, Nleafs-1>(partials+1, leafs+1, i);
+    partials[0] = leaves[0]->dx(i);
+    Getter<Expr, Nleaves-1>(partials+1, leaves+1, i);
   }
 };
 
@@ -169,8 +177,8 @@ struct Getter<Expr,1>
   typedef typename Expr::ValueT ValueT;
   typedef typename Expr::LeafType LeafType;
   inline
-  Getter(ValueT partials[], LeafType const* leafs[], int i)
-  { partials[0] = leafs[0]->dx(i); }
+  Getter(ValueT partials[], LeafType const* leaves[], int i)
+  { partials[0] = leaves[0]->dx(i); }
 };
 
 

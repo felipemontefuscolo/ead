@@ -570,13 +570,13 @@ TEST(EADTest, AliasTest1)
   y = fabs( cos(2*y + x) );
   y = exp(sin(cos(sqrt(y))));
   y = -y + 1.;
-
+  
   EXPECT_NEAR(-1.097967159421815, y.val(),  1e-4*EAD_TOL);
   EXPECT_NEAR(3.516004803580704,  y.dx(),   1e-4*EAD_TOL);
   EXPECT_NEAR(-2.762497313468641, y.d2x(),  1e-4*EAD_TOL2);
-
+  
   y = y;
-
+  
   EXPECT_NEAR(-1.097967159421815, y.val(),  1e-4*EAD_TOL);
   EXPECT_NEAR(3.516004803580704,  y.dx(),   1e-4*EAD_TOL);
   EXPECT_NEAR(-2.762497313468641, y.d2x(),  1e-4*EAD_TOL2);

@@ -1,10 +1,9 @@
 #include <iostream>
 //#define EAD_DEBUG       // to debug
-#include "Ead/ead.hpp"
+#include "Ead/ead2.hpp"
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>      // std::setprecision
-#include "include/adept.h"
 
 using namespace std;
 using namespace ead;
@@ -15,7 +14,7 @@ const double pi = 3.14159265;
 
 int const dim  = 3;
 int const Nqp  = 5;
-int const Npts = 15;
+int const Npts = 10;
 
 // fictitious finite element code
 double Phi[Npts][Nqp];
@@ -29,122 +28,27 @@ double  X[Npts];
 
 void print_jac(double J[])
 {
-  for (int i = 0; i < Npts; ++i)
+  for (int i = 0; i < 3*Npts; ++i)
   {
-    for (int j = 0; j < Npts; ++j)
+    for (int j = 0; j < 3*Npts; ++j)
       cout << J[i*Npts + j] << " ";
     cout << endl;
   }
   cout << "\n\n";
 }
 
-void element_residue_ad(double u_[], double R_[], double J_[])
+void element_residue_ad(double x_[], double G_[], double H_[])
 {
-  adouble u[Npts],  R[Npts]; // ead
-  
-  for (int i = 0; i < Npts; ++i)
-  {
-    u[i].val() = (i+1.)/2.; // random values
-    u[i].setDiff(i, Npts);
-    R[i].setNumVars(Npts);
-  }
-  
-  for (int q = 0; q < Nqp; ++q)
-  {
-    adouble uqp(u[0]*Phi[0][q]);
-    
-    for (int j = 1; j < Npts; ++j)
-      uqp += u[j]*Phi[j][q];
-    
-    adouble sqrt_u (sqrt(uqp));
-
-    for (int i = 0; i < Npts; ++i)
-    {
-      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
-    }
-  }
-  
-  for (int i = 0; i < Npts; ++i)
-  {
-    R_[i] = R[i].val();
-    for (int j = 0; j < Npts; ++j)
-      J_[i*Npts + j] = R[i].dx(j);
-  }
   
 }
 
 
-void element_residue_exact(double u_[], double R_[], double J_[])
+void element_residue_exact(double x_[], double G_[], double H_[])
 {
-  double u[Npts], *R = R_, *J = J_;
+  double u[Npts], *R = G_, *J = H_;
   
-  for (int i = 0; i < Npts; ++i)
-  {
-    u[i] = u_[i];
-    R[i] = 0;
-    for (int j = 0; j < Npts; ++j)
-      J[i*Npts + j] = 0;
-  }
-
-  // residue
-  for (int q = 0; q < Nqp; ++q)
-  {
-    double uqp(u[0]*Phi[0][q]);
-    
-    for (int j = 1; j < Npts; ++j)
-      uqp += u[j]*Phi[j][q];
-
-    double sqrt_u = sqrt(uqp);
-
-    for (int i = 0; i < Npts; ++i)
-    {
-      
-      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
-      
-      for (int j = 0; j < Npts; ++j)
-      {
-        J[i*Npts + j] += (1. + 1.5*sqrt_u + .5/sqrt_u ) * Phi[j][q] * Phi[i][q] * weight[q];
-      }
-    }
-  }
-  
-  //volatile double lixo(RR[I%Npts]); // volatile to avoid optimization
 }
 
-
-void element_residue_adept(double u_[], double R_[], double J_[])
-{
-  using adept::adouble;
-  adept::Stack stack;
-
-  adept::adouble u[Npts]; // adept
-  
-  adept::set_values(&u[0], Npts, u_);
-  stack.new_recording();
-
-  adouble R[Npts];
-
-  // residue
-  for (int q = 0; q < Nqp; ++q)
-  {
-    adouble uqp(u[0]*Phi[0][q]);
-    
-    for (int j = 1; j < Npts; ++j)
-      uqp += u[j]*Phi[j][q];
-
-    adouble sqrt_u = sqrt(uqp);
-
-    for (int i = 0; i < Npts; ++i)
-      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
-  }
-  
-  stack.independent(&u[0], Npts);
-  stack.dependent(&R[0], Npts);
-  stack.jacobian(J_);
-  
-  for (int i = 0; i < Npts; ++i)
-    R_[i] = R[i].value();
-}
 
 int main(int argc, char *argv[])
 {
@@ -174,9 +78,11 @@ int main(int argc, char *argv[])
 
   for (int i = 0; i < Npts; ++i)
   {
-    u[i] = (i+1.)/2.; // random values
-    X[i] = double((i+1)*(i+2))/3.; // random values
+    u[i] = double(rand())/RAND_MAX; // random values
+    X[i] = 10*double(rand())/RAND_MAX; // random values
   }
+
+
 
   // ============================================================
   
@@ -186,7 +92,7 @@ int main(int argc, char *argv[])
     element_residue_ad(u, R, J);
 
   clock_t end = clock();
-  double elapsed_ad = double(end - begin) / CLOCKS_PER_SEC;
+  double elapsed_ad = double(end - begin) / CLOCKS_PEG_SEC;
   
   cout << "EAD:\n";
   print_jac(J);
@@ -199,34 +105,18 @@ int main(int argc, char *argv[])
     element_residue_exact(u, R, J);
 
   end = clock();
-  double elapsed_ex = double(end - begin) / CLOCKS_PER_SEC;
+  double elapsed_ex = double(end - begin) / CLOCKS_PEG_SEC;
   
   cout << "EXACT:\n";
   print_jac(J);
   
-  // ============================================================
-
-  begin = clock();
-  
-  for (int i = 0; i < N_iterations; ++i)
-    element_residue_adept(u, R, J);
-
-  end = clock();
-  double elapsed_adept = double(end - begin) / CLOCKS_PER_SEC;
-  
-  cout << "ADEPT:\n";
-  print_jac(J);
   
   // ====================== TIMES ============================
 
   cout << "Time elapsed:\n";
   cout << "EAD: "; cout << std::setprecision(9) << elapsed_ad;
   cout << endl << endl;
-  
-  cout << "Time elapsed:\n";
-  cout << "ADEPT: "; cout << std::setprecision(9) << elapsed_adept;
-  cout << endl << endl;  
-  
+    
   cout << "Time elapsed:\n";
   cout << "EXACT: "; cout << std::setprecision(9) << elapsed_ex;
   cout << endl << endl;
@@ -257,6 +147,10 @@ int main(int argc, char *argv[])
   //cout << endl << endl;
   
 }
+
+
+
+
 
 
 template<class TensorType, class Double>

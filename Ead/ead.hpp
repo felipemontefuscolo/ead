@@ -63,7 +63,7 @@ private:
 
 public:
 
-  static int const n_leafs = 1;
+  static int const n_leaves = 1;
 
   inline explicit
   DFad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx()
@@ -85,12 +85,12 @@ public:
     T const& e (e_);
     m_val = e.val();
     m_n_vars = e.numVars();
-    LeafData leaves[T::n_leafs];
+    LeafData leaves[T::n_leaves];
     e.computePartialsAndGetLeaves(1.0, leaves);
     ValueT e_dxi;
     for (unsigned i = 0; i<m_n_vars; ++i)
     {
-      e_dxi = ExprDxi<Self, T::n_leafs>(leaves, i).result;
+      e_dxi = ExprDxi<Self, T::n_leaves>(leaves, i).result;
       dx(i) = e_dxi;
     }
   }
@@ -149,13 +149,13 @@ public:
   {                                                                      \
     ExprT const& e (e_);                                                 \
     EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");         \
-    LeafData leaves[ExprT::n_leafs];                                     \
+    LeafData leaves[ExprT::n_leaves];                                     \
     e.computePartialsAndGetLeaves(1.0, leaves);                          \
     ValueT e_val = e.val();                                              \
     ValueT e_dxi;                                                        \
     for (unsigned i = 0; i<m_n_vars; ++i)                                \
     {                                                                    \
-      e_dxi = ExprDxi<Self, ExprT::n_leafs>(leaves, i).result;           \
+      e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;           \
       IMPL                                                               \
     }                                                                    \
     this->val() OP e_val;                                                \
@@ -340,9 +340,9 @@ private:                                                                        
                                                                                                        \
 public:                                                                                                \
                                                                                                        \
-  static int const n_leafs1 = ExprL::n_leafs;                                                          \
-  static int const n_leafs2 = ExprR::n_leafs;                                                          \
-  static int const n_leafs  = n_leafs1 + n_leafs2;                                                     \
+  static int const n_leaves1 = ExprL::n_leaves;                                                          \
+  static int const n_leaves2 = ExprR::n_leaves;                                                          \
+  static int const n_leaves  = n_leaves1 + n_leaves2;                                                     \
                                                                                                        \
   inline                                                                                               \
   OP_CLASS_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     \
@@ -363,7 +363,7 @@ public:                                                                         
   void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                             \
   {                                                                                                    \
     m_expL.computePartialsAndGetLeaves(DEDL, leaves);                                                  \
-    m_expR.computePartialsAndGetLeaves(DEDR, leaves + n_leafs1);                                       \
+    m_expR.computePartialsAndGetLeaves(DEDR, leaves + n_leaves1);                                       \
   }                                                                                                    \
                                                                                                        \
 };                                                                                                     \
@@ -427,7 +427,7 @@ EAD_BINARY_OP(fmod, BinFmodExpr, std::fmod(x,y), bar                          ,-
                                                                                                              \
   public:                                                                                                    \
                                                                                                              \
-    static int const n_leafs  = ExprT::n_leafs;                                                              \
+    static int const n_leaves  = ExprT::n_leaves;                                                              \
                                                                                                              \
     inline                                                                                                   \
     OP_CLASS_NAME(T const& s_, ExprT const& e_) : m_exp(e_),                                                 \
@@ -548,7 +548,7 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR)                              
                                                                                                              \
   public:                                                                                                    \
                                                                                                              \
-    static int const n_leafs  = ExprT::n_leafs;                                                              \
+    static int const n_leaves  = ExprT::n_leaves;                                                              \
                                                                                                              \
     inline                                                                                                   \
     OP_CLASS_NAME(ExprT const& e_) : m_exp(e_)                                                               \
@@ -625,7 +625,7 @@ private:
 
 public:
 
-  static int const n_leafs  = ExprT::n_leafs;
+  static int const n_leaves  = ExprT::n_leaves;
 
   inline
   UnaExpExpr(ExprT const& e_) : m_exp(e_), m_val(std::exp(X))
@@ -672,7 +672,7 @@ private:
   ValueT m_val;
 public:
 
-  static int const n_leafs  = ExprT::n_leafs;
+  static int const n_leaves  = ExprT::n_leaves;
 
   inline
   UnaSqrtExpr(ExprT const& e_) : m_exp(e_), m_val(std::sqrt(X))
