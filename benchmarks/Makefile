@@ -1,4 +1,5 @@
 EAD_DIR ?= ../
+ADEPT_DIR ?=/home/felipe/libs/adept
 
 CXX = g++
 RM  = rm -f
@@ -7,10 +8,14 @@ CPPSOURCES = $(wildcard *.cpp)
 TOBJECTS = $(CPPSOURCES:.cpp=.o)
 EXECS = $(CPPSOURCES:.cpp=.exe)
 
-ADEPT_DIR=/home/felipe/libs/adept
+# tests some variables
+ifneq "" "$(wildcard ${ADEPT_DIR})"
+CPPFLAGS += -I $(ADEPT_DIR) -DHAS_ADEPT
+LDFLAGS+= -L $(ADEPT_DIR)/lib -ladept
+endif
 
 # Flags passed to the preprocessor.
-CPPFLAGS += -I$(EAD_DIR) -I $(ADEPT_DIR)
+CPPFLAGS += -I$(EAD_DIR)
 # Flags passed to the C++ compiler.
 #CXXFLAGS += -O2 -g -Wall -Wextra -fno-inline
 #CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -ftree-vectorizer-verbose=5 -Wall -Wextra -DNDEBUG
@@ -19,7 +24,7 @@ CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -Wall -Wextra -DNDEBUG
 
 # valgrind --tool=callgrind  --simulate-cache=yes --collect-jumps=yes  --dump-instr=yes --trace-jump=yes  --branch-sim=yes
 
-LDFLAGS+= -L $(ADEPT_DIR)/lib -ladept
+
 
 all: msg ${TOBJECTS} ${EXECS}
 

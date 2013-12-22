@@ -1,3 +1,5 @@
+#ifdef HAS_ADEPT
+
 #include <iostream>
 //#define EAD_DEBUG       // to debug
 #include "Ead/ead.hpp"
@@ -284,4 +286,16 @@ void invert_a(TensorType & a, Double & det)
   a[2][1] = inv21;
   a[2][2] = inv22;
 }
+
+
+
+#else
+
+
+int main() {}
+
+#endif
+
+
+
 
