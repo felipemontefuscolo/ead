@@ -740,7 +740,7 @@ EAD_UNARY_OP_CLASS_TYPE(cosh , UnaCoshExpr_2 ,  std::cosh(X) ,  std::sinh(X)    
 EAD_UNARY_OP_CLASS_TYPE(sinh , UnaSinhExpr_2 ,  std::sinh(X) ,  std::cosh(X)                , std::sinh(X)                             )
 EAD_UNARY_OP_CLASS_TYPE(tanh , UnaTanhExpr_2 ,  std::tanh(X) , (1./std::pow(std::cosh(X),2)), -2.*std::tanh(X)/std::pow(std::cosh(X),2))
 
-EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr_2  ,  std::exp(X)  , std::exp(X)                  , std::exp(X)                              )
+//EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr_2  ,  std::exp(X)  , std::exp(X)                  , std::exp(X)                              )
 EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr_2  ,  std::log(X)  , 1.0/X                        , -1./std::pow(X,2)                        )
 EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr_2,  std::log10(X), 1.0/(X*std::log(10))         , -1./(std::pow(X,2)*std::log(10))         )
 
@@ -760,8 +760,6 @@ EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr_2,  std::floor(X), 0.               
 
 
 // Specialization
-//EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr_2 ,  std::sqrt(X) , 1.0/(2.*std::sqrt(X))        , -1./(4.*std::pow(X,1.5))                 )
-#define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX, D2EDX)
 template<typename ExprT>
 class UnaSqrtExpr_2 : public ExprWrapper2<UnaSqrtExpr_2<ExprT> >
 {
@@ -821,21 +819,63 @@ sqrt (ExprWrapper2<Expr> const& e_)
 
 
 
+// Specialization
+template<typename ExprT>
+class UnaExpExpr_2 : public ExprWrapper2<UnaExpExpr_2<ExprT> >
+{
+public:
+  typedef typename ExprT::ValueT ValueT;
+  typedef typename ExprT::FieldT FieldT;
+  typedef typename ExprT::ValueT_CR ValueT_CR;
+  typedef typename ExprT::LeafType LeafType;
+  typedef typename ExprT::LeafData LeafData;
+
+private:
+  ExprT const& m_exp;
+  ValueT m_val;
+public:
+
+  static int const n_leaves  = ExprT::n_leaves;
+  static int const dtmp_size = n_leaves + ExprT::dtmp_size;
 
 
+  UnaExpExpr_2(ExprT const& e_) : m_exp(e_), m_val(std::exp(X))
+  { }
 
+  ValueT val() const
+  {return m_val;}
 
+  unsigned numVars() const
+  { return m_exp.numVars(); }
 
+  void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const
+  {
+    m_exp.computeTempPartials(1.0, dtmp + n_leaves );
+    m_exp.getLeafsAndTempPartials(dtmp + n_leaves, leaves);
+  }
 
+  void computeTempPartials(ValueT_CR bar, ValueT dtmp[]) const
+  {
+    ValueT const dedx = m_val;
+    m_exp.computeTempPartials(dedx*bar, dtmp);
+  }
 
+  void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const
+  {
+    ValueT const dedx  = m_val;
+    ValueT const d2edx = m_val;
+    m_exp.computeHessianPartials(dedx*bar, d2edx*bar + dedx*dedx*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);
+  }
 
+};
 
-
-
-
-
-
-
+template<typename Expr>
+inline
+UnaExpExpr_2<Expr>
+exp (ExprWrapper2<Expr> const& e_)
+{
+  return UnaExpExpr_2<Expr>(e_);
+}
 
 #undef X
 
