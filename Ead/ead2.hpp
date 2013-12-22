@@ -110,7 +110,8 @@ public:
       std::swap(i,j);
     return m_d2x[i*numVars()-i*(i+1)/2+j];
   }
-  ValueT_CR  d2xFast(unsigned i) const { return m_d2x[i];}
+  ValueT_CR  d2xFast(unsigned i) const             { return m_d2x[i];}
+  ValueT_CR  d2xFast(unsigned i, unsigned j) const { return m_d2x[i*numVars()-i*(i+1)/2+j];}
 
   unsigned  numVars() const {return m_n_vars;}
   unsigned  hessianSize() const {return m_n_vars*(1+m_n_vars)/2;}
@@ -168,7 +169,6 @@ public:
 //------------------ ASSIGNS OPERATORS | EXPR VERSION ---------------
 //     -------------------------------------------------------
 //         ----------------------------------------------
-
   template<class ExprT>
   inline
   Self& operator= (ExprWrapper2<ExprT> const& e_)
@@ -198,12 +198,13 @@ public:
       for (int j = i; j<(int)m_n_vars; ++j)
       {
         e_dxij = 0.;
+
         for (int k = 0; k< n_leaves ; ++k)
         {
           ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);
           ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);
 
-          e_dxij += leaf_k_dxi*leaf_k_dxj*leaves[k].hes_dig + leaves[k].partial*leaves[k].ptr->d2x(i,j);
+          e_dxij += leaf_k_dxi*leaf_k_dxj*leaves[k].hes_dig + leaves[k].partial*leaves[k].ptr->d2xFast(i,j);
           for (int l = k+1; l< n_leaves; ++l)
           {
             int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;
@@ -212,6 +213,7 @@ public:
           }
         }
         d2x(i,j)  = e_dxij;
+       
       }
     }
     for (unsigned i = 0; i<m_n_vars; ++i)
@@ -222,6 +224,7 @@ public:
     this->val() = e_val;
     return *this;
   }
+
 
 #define EAD_ASSIGN_OPS(OP_NAME, OP)                                 \
   template<class ExprT>                                             \
@@ -398,14 +401,14 @@ std::ostream& operator << (std::ostream& os, ExprWrapper2<T> const& x_) {
 // DUMMY_S is not used for anything
 #define EAD_BINARY_OP(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDL, DEDR, D2EDL, D2EDR, D2EDLR)           \
 template<typename ExprL, typename ExprR>                                                               \
-class OP_CLASS_NAME : public ExprWrapper2<OP_CLASS_NAME<ExprL,ExprR> >                                  \
+class OP_CLASS_NAME : public ExprWrapper2<OP_CLASS_NAME<ExprL,ExprR> >                                 \
 {                                                                                                      \
 public:                                                                                                \
   typedef typename ExprL::ValueT ValueT;                                                               \
   typedef typename ExprL::FieldT FieldT;                                                               \
   typedef typename ExprL::ValueT_CR ValueT_CR;                                                         \
   typedef typename ExprL::LeafType LeafType;                                                           \
-  typedef typename ExprL::LeafData LeafData;                                                               \
+  typedef typename ExprL::LeafData LeafData;                                                           \
                                                                                                        \
 private:                                                                                               \
                                                                                                        \
@@ -414,46 +417,49 @@ private:                                                                        
                                                                                                        \
   ValueT const x;    /* left value  */                                                                 \
   ValueT const y;    /* right value */                                                                 \
-                                                                                                       \
+  ValueT const dedl;                                                                                   \
+  ValueT const dedr;                                                                                   \
 public:                                                                                                \
                                                                                                        \
-  static int const n_leaves1  = ExprL::n_leaves;                                                         \
-  static int const n_leaves2  = ExprR::n_leaves;                                                         \
-  static int const n_leaves   = n_leaves1 + n_leaves2;                                                    \
-  static int const dtmp_size = n_leaves + ExprL::dtmp_size + ExprR::dtmp_size;                          \
+  static int const n_leaves1  = ExprL::n_leaves;                                                       \
+  static int const n_leaves2  = ExprR::n_leaves;                                                       \
+  static int const n_leaves   = n_leaves1 + n_leaves2;                                                 \
+  static int const dtmp_size = n_leaves + ExprL::dtmp_size + ExprR::dtmp_size;                         \
                                                                                                        \
   OP_CLASS_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     \
                                                       m_expR(rhs),                                     \
                                                       x(lhs.val()),                                    \
-                                                      y(rhs.val())                                     \
+                                                      y(rhs.val()),                                    \
+                                                      dedl(DEDL),                                      \
+                                                      dedr(DEDR)                                       \
   { }                                                                                                  \
                                                                                                        \
   ValueT val() const                                                                                   \
   { return VAL_RET;}                                                                                   \
                                                                                                        \
-  unsigned numVars() const                                                                            \
-  { return m_expL.numVars(); }                                                                        \
+  unsigned numVars() const                                                                             \
+  { return m_expL.numVars(); }                                                                         \
                                                                                                        \
                                                                                                        \
-  void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const                           \
+  void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const                                 \
   {                                                                                                    \
-    m_expL.computeTempPartials(1.0, dtmp + n_leaves                    );                                \
-    m_expR.computeTempPartials(1.0, dtmp + n_leaves + ExprL::dtmp_size );                                \
+    m_expL.computeTempPartials(1.0, dtmp + n_leaves                    );                              \
+    m_expR.computeTempPartials(1.0, dtmp + n_leaves + ExprL::dtmp_size );                              \
                                                                                                        \
-    m_expL.getLeafsAndTempPartials(dtmp + n_leaves                    , leaves);                         \
-    m_expR.getLeafsAndTempPartials(dtmp + n_leaves + ExprL::dtmp_size , leaves + n_leaves1);              \
+    m_expL.getLeafsAndTempPartials(dtmp + n_leaves                    , leaves);                       \
+    m_expR.getLeafsAndTempPartials(dtmp + n_leaves + ExprL::dtmp_size , leaves + n_leaves1);           \
   }                                                                                                    \
                                                                                                        \
   void computeTempPartials(ValueT_CR bar, ValueT dtmp[]) const                                         \
   {                                                                                                    \
-    m_expL.computeTempPartials((DEDL)*bar, dtmp);                                                      \
-    m_expR.computeTempPartials((DEDR)*bar, dtmp + n_leaves1);                                           \
+    m_expL.computeTempPartials(dedl*bar, dtmp);                                                        \
+    m_expR.computeTempPartials(dedr*bar, dtmp + n_leaves1);                                            \
   }                                                                                                    \
                                                                                                        \
   void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const  \
   {                                                                                                                                         \
-    ValueT const dedl   = DEDL;                                                                                                             \
-    ValueT const dedr   = DEDR;                                                                                                             \
+    /*ValueT const dedl   = DEDL;*/                                                                                                         \
+    /*ValueT const dedr   = DEDR;*/                                                                                                         \
     ValueT const d2edlr = D2EDLR;                                                                                                           \
                                                                                                                                             \
     ValueT const diag = bar2*dedl*dedr + bar*d2edlr;                                                                                        \
@@ -475,11 +481,11 @@ public:                                                                         
     ValueT const d2edl = D2EDL;                                                                                                             \
     ValueT const d2edr = D2EDR;                                                                                                             \
                                                                                                                                             \
-    m_expL.computeHessianPartials(dedl*bar, d2edl*bar + dedl*dedl*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);             \
-    m_expR.computeHessianPartials(dedr*bar, d2edr*bar + dedr*dedr*bar2, leaves + n_leaves1,                                          \
-                                                                       dtmp+n_leaves+ExprL::dtmp_size,                                          \
+    m_expL.computeHessianPartials(dedl*bar, d2edl*bar + dedl*dedl*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);                    \
+    m_expR.computeHessianPartials(dedr*bar, d2edr*bar + dedr*dedr*bar2, leaves + n_leaves1,                                                 \
+                                                                       dtmp+n_leaves+ExprL::dtmp_size,                                      \
                                                                        hessian_off_diag + n_leaves1*(csize-1) - n_leaves1*(1+n_leaves1)/2 + n_leaves1, \
-                                                                       csize - n_leaves1 );                                                     \
+                                                                       csize - n_leaves1 );                                                    \
                                                                                                                                                \
                                                                                                        \
   }                                                                                                    \

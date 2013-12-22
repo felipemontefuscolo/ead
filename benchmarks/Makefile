@@ -12,9 +12,9 @@ ADEPT_DIR=/home/felipe/libs/adept
 # Flags passed to the preprocessor.
 CPPFLAGS += -I$(EAD_DIR) -I $(ADEPT_DIR)
 # Flags passed to the C++ compiler.
-CXXFLAGS += -O2 -g -Wall -Wextra -fno-inline
+#CXXFLAGS += -O2 -g -Wall -Wextra -fno-inline
 #CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -ftree-vectorizer-verbose=5 -Wall -Wextra -DNDEBUG
-#CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -Wall -Wextra -DNDEBUG
+CXXFLAGS += -O3 -march=native -ftree-vectorize -msse2 -Wall -Wextra -DNDEBUG
 #CXXFLAGS += -O2 -march=native -Wall -Wextra
 
 # valgrind --tool=callgrind  --simulate-cache=yes --collect-jumps=yes  --dump-instr=yes --trace-jump=yes  --branch-sim=yes
@@ -31,7 +31,7 @@ all: msg ${TOBJECTS} ${EXECS}
 
 
 clean:
-	$(RM) *.o *.d *.exe *~
+	$(RM) *.o *.d *.exe *~ callgrind.o*
 	
 msg: ${EXECS}
 	@echo 
