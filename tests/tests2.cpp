@@ -652,7 +652,40 @@ TEST(EADTest, LongTreeTest)
 
 }
 
+TEST(EADTest, LongTreeTest2)
+{
+  int N = 25;
+  double const c = 8./7.;
+  vector<adouble> x(N);
+  adouble y(0,N);
+  
+  for (int i = 0; i < N; ++i)
+  {
+    x[i].val() = c;
+    x[i].setDiff(i, N);
+  }
+  
+  y = x[0]*x[0]+x[1]*x[1]+x[2]*x[2]+x[3]*x[3]+x[4]*x[4]+
+      x[5]*x[5]+x[6]*x[6]+x[7]*x[7]+x[8]*x[8]+x[9]*x[9]+
+      x[10]*x[10]+x[11]*x[11]+x[12]*x[12]+x[13]*x[13]+x[14]*x[14]+
+      x[15]*x[15]+x[16]*x[16]+x[17]*x[17]+x[18]*x[18]+x[19]*x[19]+
+      x[20]*x[20]+x[21]*x[21]+x[22]*x[22]+x[23]*x[23]+x[24]*x[24];
 
+  for (int i = 0; i < N; ++i)
+  {
+    EXPECT_NEAR(2.*c,  y.dx(i),   1e-14);
+    
+    EXPECT_NEAR(2.,  y.d2x(i,i),   1e-14);
+    
+    for (int j = i+1; j < N; ++j)
+      EXPECT_NEAR(0., y.d2x(i,j),  1e-14) << "\n" << "i=" << i << ", j=" << j << "\n";
+  } 
+
+  
+  
+  
+  
+}
 
 // ~~                                                                 ~~
 // ~~~~~~~~                                                     ~~~~~~~~

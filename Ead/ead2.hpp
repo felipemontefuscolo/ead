@@ -449,10 +449,9 @@ public:                                                                         
                                                                                                        \
   void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const  \
   {                                                                                                                                         \
-    ValueT const dedl  = DEDL;                                                                                                              \
-    ValueT const dedr  = DEDR;                                                                                                              \
-    ValueT const d2edl = D2EDL;                                                                                                             \
-    ValueT const d2edr = D2EDR;                                                                                                             \
+    ValueT const dedl   = DEDL;                                                                                                             \
+    ValueT const dedr   = DEDR;                                                                                                             \
+    ValueT const d2edlr = D2EDLR;                                                                                                           \
                                                                                                                                             \
     for (int i = 0; i < n_leaves1; ++i)                                                                                                     \
     {                                                                                                                                       \
@@ -462,15 +461,17 @@ public:                                                                         
       for (int j = n_leaves1; j < n_leaves; ++j)                                                                                            \
       {                                                                                                                                     \
         ValueT const drdaj = dtmp[n_leaves + ExprL::dtmp_size + j-n_leaves1];                                                               \
-        ValueT const dedaj = dedr*drdaj;                                                                                                    \
-        ValueT const d2edaij = (D2EDLR)*dldai*drdaj;                                                                                        \
                                                                                                                                             \
-        hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = bar2*dedai*dedaj + bar*d2edaij;                                                       \
+        /*hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = bar2*dedai*dedaj + bar*d2edaij;*/                                                   \
+        hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = dldai*drdaj*(bar2*dedl*dedr + bar*d2edlr);                                           \
       }                                                                                                                                     \
     }                                                                                                                                       \
                                                                                                                                             \
-    m_expL.computeHessianPartials(dedl*bar, d2edl*bar + std::pow(dedl,2)*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);            \
-    m_expR.computeHessianPartials(dedr*bar, d2edr*bar + std::pow(dedr,2)*bar2, leaves + n_leaves1,                                         \
+    ValueT const d2edl = D2EDL;                                                                                                             \
+    ValueT const d2edr = D2EDR;                                                                                                             \
+                                                                                                                                            \
+    m_expL.computeHessianPartials(dedl*bar, d2edl*bar + dedl*dedl*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);             \
+    m_expR.computeHessianPartials(dedr*bar, d2edr*bar + dedr*dedr*bar2, leaves + n_leaves1,                                          \
                                                                        dtmp+n_leaves+ExprL::dtmp_size,                                          \
                                                                        hessian_off_diag + n_leaves1*(csize-1) - n_leaves1*(1+n_leaves1)/2 + n_leaves1, \
                                                                        csize - n_leaves1 );                                                     \
