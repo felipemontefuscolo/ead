@@ -14,7 +14,8 @@ const double pi = 3.14159265;
 
 int const dim  = 3;
 int const Nqp  = 5;
-int const Npts = 15;
+int const Npts = 10;
+int const Nunk = 3*Npts;
 
 // fictitious finite element code
 double Phi[Npts][Nqp];
@@ -24,7 +25,7 @@ double weight[Nqp];
 template<class TensorType, class Double>
 void invert_a(TensorType & a, Double & det);
 
-double  X[Npts];
+double  X[Nunk];
 
 void print_jac(double J[])
 {

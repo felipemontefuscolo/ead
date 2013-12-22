@@ -8,13 +8,13 @@
 using namespace std;
 using namespace ead;
 
-typedef ead::DFad<double, 30> adouble;
+typedef ead::D2Fad<double, 30> adouble;
 
 const double pi = 3.14159265;
 
 int const dim  = 3;
 int const Nqp  = 5;
-int const Npts = 10;
+int const Npts = 15;
 
 // fictitious finite element code
 double Phi[Npts][Nqp];
@@ -26,35 +26,94 @@ void invert_a(TensorType & a, Double & det);
 
 double  X[Npts];
 
-void print_jac(double J[])
+void print_jac(double G[], double J[])
 {
-  for (int i = 0; i < 3*Npts; ++i)
+  for (int i = 0; i < Npts; ++i)
   {
-    for (int j = 0; j < 3*Npts; ++j)
+    for (int j = 0; j < Npts; ++j)
       cout << J[i*Npts + j] << " ";
     cout << endl;
   }
+  for (int i = 0; i < Npts; ++i)
+  {
+    cout << G[i] << " ";
+  }
+  
   cout << "\n\n";
 }
 
-void element_residue_ad(double x_[], double G_[], double H_[])
+double element_residue_ad(double x_[], double G_[], double H_[])
 {
+  adouble x[Npts],  y; // ead
   
+  y.setNumVars(Npts);
+  for (int i = 0; i < Npts; ++i)
+  {
+    x[i].val() = x_[i]; // random values
+    x[i].setDiff(i, Npts);
+  }
+  
+  y = 0;
+  
+  for (int i = 0; i < Npts; i+=3)
+  {
+    y += pow(x[i],2) + pow(x[i+1],2) + pow(x[i+2],2);
+  }
+
+  y = 1./sqrt(y);
+
+  
+  for (int i = 0; i < Npts; ++i)
+  {
+    for (int j = 0; j < Npts; ++j)
+      H_[i*Npts + j] = y.d2x(i,j);
+    G_[i] = y.dx(i);
+  }
+  
+  
+  return y.val();
 }
 
 
-void element_residue_exact(double x_[], double G_[], double H_[])
+double element_residue_exact(double x_[], double G_[], double H_[])
 {
-  double u[Npts], *R = G_, *J = H_;
+  double y;
+  double *x = x_;
+  double *H = H_;
+
+  y = 0;
+  for (int i = 0; i < Npts; i+=3)
+  {
+    y += pow(x[i],2) + pow(x[i+1],2) + pow(x[i+2],2);
+  }
+  y = 1./sqrt(y);
+
+  double y2 (pow(y,2));
+  double y3 (y2*y);
+  double y5 (y2*y3);
+
+  for (int i = 0; i < Npts; ++i)
+  {
+    for (int j = 0; j < Npts; ++j)
+      if (i==j)
+        H[i*Npts + j] = y3*(3*x[i]*x[j]*y2 - 1);
+      else
+        H[i*Npts + j] = y5*3*x[i]*x[j];
+    G_[i] = -x[i]*y3;
+  }
   
+  
+  return y;
 }
+
+
 
 
 int main(int argc, char *argv[])
 {
-  int N_iterations = int(1e+3);
+  int N_iterations = int(1e+5);
   
-  double u[Npts], R[Npts], J[Npts*Npts];
+  double u[Npts], J[Npts*Npts], G[Npts];
   
   if (argc > 1)
   {
@@ -63,18 +122,6 @@ int main(int argc, char *argv[])
   
   srand(1234);
   
-  // set variables with random numbers
-  for (int q = 0; q < Nqp; ++q)
-  {
-    for (int i = 0; i < Npts; ++i)
-    {
-      Phi[i][q] = double(rand())/RAND_MAX;
-      dLPhi[0][i][q] = double(rand())/RAND_MAX;
-      dLPhi[1][i][q] = double(rand())/RAND_MAX;
-      dLPhi[2][i][q] = double(rand())/RAND_MAX;
-    }
-    weight[q] = double(rand())/RAND_MAX;
-  }
 
   for (int i = 0; i < Npts; ++i)
   {
@@ -89,26 +136,26 @@ int main(int argc, char *argv[])
   clock_t begin = clock();
   
   for (int i = 0; i < N_iterations; ++i)
-    element_residue_ad(u, R, J);
+    element_residue_ad(u, G, J);
 
   clock_t end = clock();
-  double elapsed_ad = double(end - begin) / CLOCKS_PEG_SEC;
+  double elapsed_ad = double(end - begin) / CLOCKS_PER_SEC;
   
   cout << "EAD:\n";
-  print_jac(J);
+  print_jac(G,J);
   
   // ============================================================
 
   begin = clock();
   
   for (int i = 0; i < N_iterations; ++i)
-    element_residue_exact(u, R, J);
+    element_residue_exact(u, G, J);
 
   end = clock();
-  double elapsed_ex = double(end - begin) / CLOCKS_PEG_SEC;
+  double elapsed_ex = double(end - begin) / CLOCKS_PER_SEC;
   
   cout << "EXACT:\n";
-  print_jac(J);
+  print_jac(G,J);
   
   
   // ====================== TIMES ============================
