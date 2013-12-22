@@ -48,9 +48,9 @@ public:
   typedef typename RetTrivial<ValueT>::const_type ValueT_CR;
 
   typedef D2Fad LeafType;
-  
+
   typedef LeafData2_<Self, ValueT> LeafData;
-  
+
   static const unsigned max_n_comps = Mnc_;
 private:
 
@@ -200,7 +200,10 @@ public:
         e_dxij = 0.;
         for (int k = 0; k< n_leaves ; ++k)
         {
-          e_dxij += leaves[k].ptr->dx(i)*leaves[k].ptr->dx(j)*leaves[k].hes_dig + leaves[k].partial*leaves[k].ptr->d2x(i,j);
+          ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);
+          ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);
+
+          e_dxij += leaf_k_dxi*leaf_k_dxj*leaves[k].hes_dig + leaves[k].partial*leaves[k].ptr->d2x(i,j);
           for (int l = k+1; l< n_leaves; ++l)
           {
             int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;
@@ -453,17 +456,19 @@ public:                                                                         
     ValueT const dedr   = DEDR;                                                                                                             \
     ValueT const d2edlr = D2EDLR;                                                                                                           \
                                                                                                                                             \
+    ValueT const diag = bar2*dedl*dedr + bar*d2edlr;                                                                                        \
+                                                                                                                                            \
     for (int i = 0; i < n_leaves1; ++i)                                                                                                     \
     {                                                                                                                                       \
       ValueT const dldai = dtmp[n_leaves + i];                                                                                              \
-      ValueT const dedai = dedl*dldai;                                                                                                      \
+                                                                                                                                            \
+      ValueT const aux = dldai*diag;                                                                                                        \
                                                                                                                                             \
       for (int j = n_leaves1; j < n_leaves; ++j)                                                                                            \
       {                                                                                                                                     \
         ValueT const drdaj = dtmp[n_leaves + ExprL::dtmp_size + j-n_leaves1];                                                               \
                                                                                                                                             \
-        /*hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = bar2*dedai*dedaj + bar*d2edaij;*/                                                   \
-        hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = dldai*drdaj*(bar2*dedl*dedr + bar*d2edlr);                                           \
+        hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = drdaj*aux;                                                                            \
       }                                                                                                                                     \
     }                                                                                                                                       \
                                                                                                                                             \
@@ -503,122 +508,6 @@ EAD_BINARY_OP(pow,  BinPowExpr_2 , std::pow(x,y) , std::pow(x,y-1)*y    , std::p
 EAD_BINARY_OP(fmod, BinFmodExpr_2, std::fmod(x,y), 1.0  ,-(y==0.?0.: ((y<0)^(x<0)? std::ceil(x/y) : std::floor(x/y)) )  , 0.0,  0.0 , 0.0 )
 
 #undef EAD_BINARY_OP
-
-
-
-
-
-
-
-
-
-
-
-
-//~ template<typename ExprL, typename ExprR>                                                               
-//~ class BinSubtExpr_2 : public ExprWrapper2<BinSubtExpr_2<ExprL,ExprR> >                                  
-//~ {                                                                                                      
-//~ public:                                                                                                
-  //~ typedef typename ExprL::ValueT ValueT;                                                               
-  //~ typedef typename ExprL::FieldT FieldT;                                                               
-  //~ typedef typename ExprL::ValueT_CR ValueT_CR;                                                         
-  //~ typedef typename ExprL::LeafType LeafType;                                                           
-  //~ typedef typename ExprL::LeafData LeafData;                                                               
-                                                                                                       //~ 
-//~ private:                                                                                               
-                                                                                                       //~ 
-  //~ ExprL const& m_expL;                                                                                 
-  //~ ExprR const& m_expR;                                                                                 
-                                                                                                       //~ 
-  //~ ValueT const x;    /* left value  */                                                                 
-  //~ ValueT const y;    /* right value */                                                                 
-                                                                                                       //~ 
-//~ public:                                                                                                
-                                                                                                       //~ 
-  //~ static int const n_leaves1  = ExprL::n_leaves;                                                         
-  //~ static int const n_leaves2  = ExprR::n_leaves;                                                         
-  //~ static int const n_leaves   = n_leaves1 + n_leaves2;                                                    
-  //~ static int const dtmp_size = n_leaves + ExprL::dtmp_size + ExprR::dtmp_size;                          
-                                                                                                       //~ 
-  //~ BinSubtExpr_2(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     
-                                                      //~ m_expR(rhs),                                     
-                                                      //~ x(lhs.val()),                                    
-                                                      //~ y(rhs.val())                                     
-  //~ { }                                                                                                  
-                                                                                                       //~ 
-  //~ ValueT val() const                                                                                   
-  //~ { return x-y;}                                                                                   
-                                                                                                       //~ 
-  //~ unsigned numVars() const                                                                            
-  //~ { return m_expL.numVars(); }                                                                        
-                                                                                                       //~ 
-                                                                                                       //~ 
-  //~ void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const                           
-  //~ {                                                                                                    
-    //~ m_expL.computeTempPartials(1.0, dtmp + n_leaves                    );                                
-    //~ m_expR.computeTempPartials(1.0, dtmp + n_leaves + ExprL::dtmp_size );                                
-                                                                                                       //~ 
-    //~ m_expL.getLeafsAndTempPartials(dtmp + n_leaves                    , leaves);                         
-    //~ m_expR.getLeafsAndTempPartials(dtmp + n_leaves + ExprL::dtmp_size , leaves + n_leaves1);              
-  //~ }                                                                                                    
-                                                                                                       //~ 
-  //~ void computeTempPartials(ValueT_CR bar, ValueT dtmp[]) const                                         
-  //~ {                                                                                                    
-    //~ m_expL.computeTempPartials((1.0)*bar, dtmp);                                                      
-    //~ m_expR.computeTempPartials((-1.0)*bar, dtmp + n_leaves1);                                           
-  //~ }                                                                                                    
-                                                                                                       //~ 
-  //~ void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const  
-  //~ {                                                                                                                                         
-    //~ ValueT const dedl  = 1.0;                                                                                                              
-    //~ ValueT const dedr  = -1.0;                                                                                                              
-    //~ ValueT const d2edl = 0.0;                                                                                                             
-    //~ ValueT const d2edr = 0.0;                                                                                                             
-                                                                                                                                            //~ 
-    //~ for (int i = 0; i < n_leaves1; ++i)                                                                                                     
-    //~ {                                                                                                                                       
-      //~ ValueT const dldai = dtmp[n_leaves + i];                                                                                              
-      //~ ValueT const dedai = dedl*dldai;                                                                                                      
-                                                                                                                                            //~ 
-      //~ for (int j = n_leaves1; j < n_leaves; ++j)                                                                                            
-      //~ {                                                                                                                                     
-        //~ ValueT const drdaj = dtmp[n_leaves + ExprL::dtmp_size + j-n_leaves1];                                                               
-        //~ ValueT const dedaj = dedr*drdaj;                                                                                                    
-        //~ ValueT const d2edaij = (0.0)*dldai*drdaj;                                                                                        
-                                                                                                                                            //~ 
-        //~ hessian_off_diag[i*(csize-1)-i*(i+1)/2+j-1] = bar2*dedai*dedaj + bar*d2edaij;                                                       
-      //~ }                                                                                                                                     
-    //~ }                                                                                                                                       
-                                                                                                                                            //~ 
-    //~ m_expL.computeHessianPartials(dedl*bar, d2edl*bar + std::pow(dedl,2)*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);            
-    //~ m_expR.computeHessianPartials(dedr*bar, d2edr*bar + std::pow(dedr,2)*bar2, leaves + n_leaves1,                                         
-                                                                       //~ dtmp+n_leaves+ExprL::dtmp_size,                                          
-                                                                       //~ hessian_off_diag + (n_leaves1-1)*csize - n_leaves1*(1+n_leaves1)/2 + n_leaves1-1, 
-                                                                       //~ csize - n_leaves1 );                                                     
-                                                                                                                                               //~ 
-                                                                                                       //~ 
-  //~ }                                                                                                    
-                                                                                                       //~ 
-//~ };                                                                                                     
-                                                                                                       //~ 
-//~ template<typename L, typename R>                                                                       
-//~ inline                                                                                                 
-//~ BinSubtExpr_2<L, R>                                                                                    
-//~ operator- (ExprWrapper2<L> const& l, ExprWrapper2<R> const& r)                                       
-//~ {                                                                                                      
-  //~ return BinSubtExpr_2<L, R>(l,r);                                                                     
-//~ }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -690,7 +579,9 @@ EAD_BINARY_OP(fmod, BinFmodExpr_2, std::fmod(x,y), 1.0  ,-(y==0.?0.: ((y<0)^(x<0
                                                                                                              \
     void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const \
     {                                                                                                                                        \
-      m_exp.computeHessianPartials((DEDX)*bar, (D2EDX)*bar + std::pow((DEDX),2)*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);      \
+      ValueT const dedx  = DEDX;                                                                                                             \
+      ValueT const d2edx = D2EDX;                                                                                                            \
+      m_exp.computeHessianPartials(dedx*bar, d2edx*bar + dedx*dedx*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);       \
     }                                                                                                                                        \
                                                                                                                                              \
   };
@@ -818,7 +709,9 @@ EAD_PSEUDO_UNARY_OP_FUNCTION_R(fmod, UnaFmodExprR_2)                            
                                                                                                              \
     void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const \
     {                                                                                                                                        \
-      m_exp.computeHessianPartials((DEDX)*bar, (D2EDX)*bar + std::pow((DEDX),2)*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);      \
+      ValueT const dedx  = DEDX;                                                                                                             \
+      ValueT const d2edx = D2EDX;                                                                                                            \
+      m_exp.computeHessianPartials(dedx*bar, d2edx*bar + dedx*dedx*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);      \
     }                                                                                                                                        \
                                                                                                              \
   };                                                                                                         \
@@ -851,7 +744,7 @@ EAD_UNARY_OP_CLASS_TYPE(exp  , UnaExpExpr_2  ,  std::exp(X)  , std::exp(X)      
 EAD_UNARY_OP_CLASS_TYPE(log  , UnaLogExpr_2  ,  std::log(X)  , 1.0/X                        , -1./std::pow(X,2)                        )
 EAD_UNARY_OP_CLASS_TYPE(log10, UnaLog10Expr_2,  std::log10(X), 1.0/(X*std::log(10))         , -1./(std::pow(X,2)*std::log(10))         )
 
-EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr_2 ,  std::sqrt(X) , 1.0/(2.*std::sqrt(X))        , -1./(4.*std::pow(X,1.5))                 )
+//EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr_2 ,  std::sqrt(X) , 1.0/(2.*std::sqrt(X))        , -1./(4.*std::pow(X,1.5))                 )
 
 EAD_UNARY_OP_CLASS_TYPE(ceil , UnaCeilExpr_2 ,  std::ceil(X) , 0.                           , 0.                                       )
 EAD_UNARY_OP_CLASS_TYPE(fabs , UnaFabsExpr_2 ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?-1.:1.))    , 0.                                       )
@@ -859,6 +752,91 @@ EAD_UNARY_OP_CLASS_TYPE(abs  , UnaAbsExpr_2  ,  (X<0)?-X:X   , (X==0?0.:((X<0.)?
 EAD_UNARY_OP_CLASS_TYPE(floor, UnaFloorExpr_2,  std::floor(X), 0.                           , 0.                                       )
 
 #undef EAD_UNARY_OP_CLASS_TYPE
+
+
+
+
+
+
+
+// Specialization
+//EAD_UNARY_OP_CLASS_TYPE(sqrt , UnaSqrtExpr_2 ,  std::sqrt(X) , 1.0/(2.*std::sqrt(X))        , -1./(4.*std::pow(X,1.5))                 )
+#define EAD_UNARY_OP_CLASS_TYPE(OP_FUN_NAME, OP_CLASS_NAME, VAL_RET, DEDX, D2EDX)
+template<typename ExprT>
+class UnaSqrtExpr_2 : public ExprWrapper2<UnaSqrtExpr_2<ExprT> >
+{
+public:
+  typedef typename ExprT::ValueT ValueT;
+  typedef typename ExprT::FieldT FieldT;
+  typedef typename ExprT::ValueT_CR ValueT_CR;
+  typedef typename ExprT::LeafType LeafType;
+  typedef typename ExprT::LeafData LeafData;
+
+private:
+  ExprT const& m_exp;
+  ValueT m_val;
+public:
+
+  static int const n_leaves  = ExprT::n_leaves;
+  static int const dtmp_size = n_leaves + ExprT::dtmp_size;
+
+
+  UnaSqrtExpr_2(ExprT const& e_) : m_exp(e_), m_val(std::sqrt(X))
+  { }
+
+  ValueT val() const
+  {return m_val;}
+
+  unsigned numVars() const
+  { return m_exp.numVars(); }
+
+  void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const
+  {
+    m_exp.computeTempPartials(1.0, dtmp + n_leaves );
+    m_exp.getLeafsAndTempPartials(dtmp + n_leaves, leaves);
+  }
+
+  void computeTempPartials(ValueT_CR bar, ValueT dtmp[]) const
+  {
+    ValueT const dedx = 1.0/(2.*m_val);
+    m_exp.computeTempPartials(dedx*bar, dtmp);
+  }
+
+  void computeHessianPartials(ValueT_CR bar, ValueT_CR bar2, LeafData leaves[], ValueT dtmp[], ValueT hessian_off_diag[], int csize) const
+  {
+    ValueT const dedx  =  1.0/(2.*m_val);
+    ValueT const d2edx = -dedx/(2.*m_val*m_val);
+    m_exp.computeHessianPartials(dedx*bar, d2edx*bar + dedx*dedx*bar2, leaves, dtmp+n_leaves, hessian_off_diag, csize);
+  }
+
+};
+
+template<typename Expr>
+inline
+UnaSqrtExpr_2<Expr>
+sqrt (ExprWrapper2<Expr> const& e_)
+{
+  return UnaSqrtExpr_2<Expr>(e_);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #undef X
 
 

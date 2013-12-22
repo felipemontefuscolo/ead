@@ -44,7 +44,7 @@ void element_residue_ad(double u_[], double R_[], double J_[])
   
   for (int i = 0; i < Npts; ++i)
   {
-    u[i].val() = (i+1.)/2.; // random values
+    u[i].val() = u_[i]; // random values
     u[i].setDiff(i, Npts);
     R[i].setNumVars(Npts);
   }

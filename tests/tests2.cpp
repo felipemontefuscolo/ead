@@ -681,9 +681,7 @@ TEST(EADTest, LongTreeTest2)
       EXPECT_NEAR(0., y.d2x(i,j),  1e-14) << "\n" << "i=" << i << ", j=" << j << "\n";
   } 
 
-  
-  
-  
+   
   
 }
 
