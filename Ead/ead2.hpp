@@ -92,26 +92,35 @@ public:
     *this = e;
   }
 
-  ValueT&    val()            { return m_val; }
-  ValueT&    dx(unsigned i=0) { return m_dx[i]; }
+  ValueT&    val()       { return m_val; }
+  ValueT_CR  val() const { return m_val; }
+
+  ValueT&    dx(unsigned i=0)       { return m_dx[i]; }
+  ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
+
+  /* assume k=N*i -i*(i+1)/2 + j with i<= j*/
+  ValueT&    d2xFast(unsigned k)       { return m_d2x[k];}
+  ValueT_CR  d2xFast(unsigned k) const { return m_d2x[k];}
+
+  /* assume i<=j */
+  ValueT&    d2xFast(unsigned i, unsigned j)       { return m_d2x[i*numVars()-i*(i+1)/2+j];}
+  ValueT_CR  d2xFast(unsigned i, unsigned j) const { return m_d2x[i*numVars()-i*(i+1)/2+j];}
+
   ValueT&    d2x(unsigned i=0,unsigned j=0)
   {
-    if (j < i)
-      std::swap(i,j);
-    return m_d2x[i*numVars()-i*(i+1)/2+j];
+    if (i<=j)
+      return m_d2x[i*numVars()-i*(i+1)/2+j];
+    else
+      return m_d2x[j*numVars()-j*(j+1)/2+i];
   }
-  ValueT&    d2xFast(unsigned i) { return m_d2x[i];}
-
-  ValueT_CR  val()            const { return m_val; }
-  ValueT_CR  dx(unsigned i=0) const { return m_dx[i]; }
   ValueT_CR  d2x(unsigned i=0,unsigned j=0) const
   {
-    if (j < i)
-      std::swap(i,j);
-    return m_d2x[i*numVars()-i*(i+1)/2+j];
+    if (i<=j)
+      return m_d2x[i*numVars()-i*(i+1)/2+j];
+    else
+      return m_d2x[j*numVars()-j*(j+1)/2+i];
   }
-  ValueT_CR  d2xFast(unsigned i) const             { return m_d2x[i];}
-  ValueT_CR  d2xFast(unsigned i, unsigned j) const { return m_d2x[i*numVars()-i*(i+1)/2+j];}
+
 
   unsigned  numVars() const {return m_n_vars;}
   unsigned  hessianSize() const {return m_n_vars*(1+m_n_vars)/2;}
@@ -212,7 +221,7 @@ public:
             e_dxij += hessian_off_diag[kl]*(leaves[k].ptr->dx(i)*leaves[l].ptr->dx(j) + leaves[k].ptr->dx(j)*leaves[l].ptr->dx(i));
           }
         }
-        d2x(i,j)  = e_dxij;
+        d2xFast(i,j)  = e_dxij;
        
       }
     }
