@@ -178,79 +178,128 @@ public:
 //------------------ ASSIGNS OPERATORS | EXPR VERSION ---------------
 //     -------------------------------------------------------
 //         ----------------------------------------------
-  template<class ExprT>
-  inline
-  Self& operator= (ExprWrapper2<ExprT> const& e_)
-  {
-    const int n_leaves = ExprT::n_leaves;
-    ExprT const& e (e_);
-    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");
-    LeafData leaves[n_leaves];
-    ValueT hessian_off_diag[n_leaves*(n_leaves-1)/2 + (n_leaves==1?1:0)]; /* hessian off-diagonal */
-    /* partial of the temporaries; it doesn't store for the last temporary */
-    ValueT dtmp[ExprT::dtmp_size - n_leaves];
-    e.getLeafsAndTempPartials(dtmp - n_leaves, leaves);
-    e.computeHessianPartials(1.0, 0.0, leaves, dtmp-n_leaves, hessian_off_diag, n_leaves);
-    //for (int i = 0; i < ExprT::n_leaves*(ExprT::n_leaves+1)/2; ++i)
-    //  std::cout << " hessian_off_diag operator= [" <<i<<"] " << &hessian_off_diag[i] << std::endl;
-    //for (int i = 0; i < ExprT::dtmp_size - ExprT::n_leaves; ++i)
-    //  std::cout << " dtmp operator= [" <<i<<"] " << &dtmp[i] << std::endl;
-    //for (int i = 0; i < ExprT::n_leaves*(ExprT::n_leaves+1)/2; ++i)
-    //  std::cout << " val hessian_off_diag operator= [" <<i<<"] " << hessian_off_diag[i] << std::endl;
-    //for (int k = 0; k < ExprT::n_leaves; ++k)
-    //  std::cout << "leaves["<<k<<"]->d2x(0) = " << leaves[k]->d2x() << std::endl;
-    ValueT e_val = e.val();
-    ValueT e_dxi;
-    ValueT e_dxij;
-    for (int i = 0; i<(int)m_n_vars; ++i)
-    {
-      for (int j = i; j<(int)m_n_vars; ++j)
-      {
-        e_dxij = 0.;
 
-        for (int k = 0; k< n_leaves ; ++k)
-        {
-          ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);
-          ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);
-
-          for (int l = k+1; l< n_leaves; ++l)
-          {
-            int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;
-
-            e_dxij += hessian_off_diag[kl]*(leaves[k].ptr->dx(i)*leaves[l].ptr->dx(j) + leaves[k].ptr->dx(j)*leaves[l].ptr->dx(i));
-          }
-        }
-        d2xFast(i,j)  = e_dxij + ExprDxij<Self, n_leaves>(leaves, i, j).result;
-       
-      }
-    }
-    for (unsigned i = 0; i<m_n_vars; ++i)
-    {
-      e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;;
-      dx(i) =  e_dxi;
-    }
-    this->val() = e_val;
-    return *this;
+#define EAD_ASSIGN_OPS(OP, CACHE_DXI, DXI_CPY, IMPL, IMPL2)                                           \
+  template<class ExprT>                                                                               \
+  inline                                                                                              \
+  Self& operator OP (ExprWrapper2<ExprT> const& e_)                                                   \
+  {                                                                                                   \
+    const int n_leaves = ExprT::n_leaves;                                                             \
+    ExprT const& e (e_);                                                                              \
+    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");                                      \
+    LeafData leaves[n_leaves];                                                                        \
+    ValueT hessian_off_diag[n_leaves*(n_leaves-1)/2 + (n_leaves==1?1:0)]; /* hessian off-diagonal */  \
+    /* partial of the temporaries; it doesn't store for the last temporary */                         \
+    int const dtmp_true_size = ExprT::dtmp_size - n_leaves;                                           \
+    ValueT dtmp[dtmp_true_size <=0 ? 1 : dtmp_true_size];                                             \
+    e.getLeafsAndTempPartials(dtmp - n_leaves, leaves);                                               \
+    e.computeHessianPartials(1.0, 0.0, leaves, dtmp-n_leaves, hessian_off_diag, n_leaves);            \
+    ValueT e_val = e.val();                                                                           \
+    CACHE_DXI                                                                                         \
+    for (int i = 0; i<(int)m_n_vars; ++i)                                                             \
+    {                                                                                                 \
+      for (int j = i; j<(int)m_n_vars; ++j)                                                           \
+      {                                                                                               \
+        ValueT e_dxij = 0.;                                                                           \
+                                                                                                      \
+        for (int k = 0; k< n_leaves ; ++k)                                                            \
+        {                                                                                             \
+          ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);                                             \
+          ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);                                             \
+                                                                                                      \
+          for (int l = k+1; l< n_leaves; ++l)                                                         \
+          {                                                                                           \
+            int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;                                                    \
+                                                                                                      \
+            e_dxij += hessian_off_diag[kl]*(leaves[k].ptr->dx(i)*leaves[l].ptr->dx(j)                 \
+                     + leaves[k].ptr->dx(j)*leaves[l].ptr->dx(i));                                    \
+          }                                                                                           \
+        }                                                                                             \
+        e_dxij += ExprDxij<Self, n_leaves>(leaves, i, j).result;                                      \
+        IMPL2                                                                                         \
+      }                                                                                               \
+    }                                                                                                 \
+    for (int i = 0; i<(int)m_n_vars; ++i)                                                             \
+    {                                                                                                 \
+      DXI_CPY                                                                                         \
+      IMPL                                                                                            \
+    }                                                                                                 \
+    this->val() OP e_val;                                                                             \
+    return *this;                                                                                     \
   }
 
-
-#define EAD_ASSIGN_OPS(OP_NAME, OP)                                 \
-  template<class ExprT>                                             \
-  Self& operator OP_NAME (ExprWrapper2<ExprT> const& e_)            \
+#define EAD_CACHE_DXI                                               \
+  ValueT e_dx[max_n_comps];                                         \
+  for (int i = 0; i < (int)m_n_vars; ++i)                           \
   {                                                                 \
-    ExprT const& e (e_);                                            \
-    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");  \
-    *this = *this OP e;                                             \
-    return *this;                                                   \
+    e_dx[i] = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;     \
   }
 
-  EAD_ASSIGN_OPS(+= , +) /* += */
-  EAD_ASSIGN_OPS(-= , -) /* -= */
-  EAD_ASSIGN_OPS(*= , *) /* *= */
-  EAD_ASSIGN_OPS(/= , /) /* /= */
+#define EAD_DXI_CPY                                                \
+  ValueT e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;
+
+  EAD_ASSIGN_OPS( =, (void)(0);, EAD_DXI_CPY, dx(i) =  e_dxi;, d2xFast(i,j)  = e_dxij;)
+  EAD_ASSIGN_OPS(+=, (void)(0);, EAD_DXI_CPY, dx(i) += e_dxi;, d2xFast(i,j) += e_dxij;)
+  EAD_ASSIGN_OPS(-=, (void)(0);, EAD_DXI_CPY, dx(i) -= e_dxi;, d2xFast(i,j) -= e_dxij;)
+  
+  EAD_ASSIGN_OPS(*=, EAD_CACHE_DXI, (void)(0);, dx(i) = val()*e_dx[i] +  dx(i)*e_val;,
+                                                d2xFast(i,j) = val()*e_dxij + d2xFast(i,j)*e_val + dx(i)*e_dx[j] + dx(j)*e_dx[i];   )
+
+  EAD_ASSIGN_OPS(/=, EAD_CACHE_DXI, (void)(0);, dx(i) = (dx(i)*e_val - val()*e_dx[i])/(e_val*e_val);,
+                                                d2xFast(i,j) = (e_val*(d2xFast(i,j)*e_val - dx(i)*e_dx[j] - dx(j)*e_dx[i] - val()*e_dxij)
+                                                + 2.*e_dx[i]*e_dx[j]*val())/std::pow(e_val,3);   )
 
 #undef EAD_ASSIGN_OPS
+#undef EAD_DXI_CPY
+#undef EAD_CACHE_DXI
 
+
+  //template<class ExprT>                                                                               
+  //inline                                                                                              
+  //Self& operator += (ExprWrapper2<ExprT> const& e_)                                                   
+  //{                                                                                                   
+  //  const int n_leaves = ExprT::n_leaves;                                                             
+  //  ExprT const& e (e_);                                                                              
+  //  EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");                                      
+  //  LeafData leaves[n_leaves];                                                                        
+  //  ValueT hessian_off_diag[n_leaves*(n_leaves-1)/2 + (n_leaves==1?1:0)]; /* hessian off-diagonal */  
+  //  /* partial of the temporaries; it doesn't store for the last temporary */                         
+  //  ValueT dtmp[ExprT::dtmp_size - n_leaves];                                                         
+  //  e.getLeafsAndTempPartials(dtmp - n_leaves, leaves);                                               
+  //  e.computeHessianPartials(1.0, 0.0, leaves, dtmp-n_leaves, hessian_off_diag, n_leaves);            
+  //  ValueT e_val = e.val();                                                                           
+  //  (void)(0);                                                                                         
+  //  for (int i = 0; i<(int)m_n_vars; ++i)                                                             
+  //  {                                                                                                 
+  //    for (int j = i; j<(int)m_n_vars; ++j)                                                           
+  //    {                                                                                               
+  //      ValueT e_dxij = 0.;                                                                           
+  //                                                                                                    
+  //      for (int k = 0; k< n_leaves ; ++k)                                                            
+  //      {                                                                                             
+  //        ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);                                             
+  //        ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);                                             
+  //                                                                                                    
+  //        for (int l = k+1; l< n_leaves; ++l)                                                         
+  //        {                                                                                           
+  //          int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;                                                    
+  //                                                                                                    
+  //          e_dxij += hessian_off_diag[kl]*(leaves[k].ptr->dx(i)*leaves[l].ptr->dx(j)                 
+  //                   + leaves[k].ptr->dx(j)*leaves[l].ptr->dx(i));                                    
+  //        }                                                                                           
+  //      }                                                                                             
+  //      e_dxij += ExprDxij<Self, n_leaves>(leaves, i, j).result;                                      
+  //      d2xFast(i,j) += e_dxij;                                                                                         
+  //    }                                                                                               
+  //  }                                                                                                 
+  //  for (unsigned i = 0; i<m_n_vars; ++i)                                                             
+  //  {                                                                                                 
+  //    ValueT e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;                                                                                         
+  //    dx(i) += e_dxi             ;                                                                               
+  //  }                                                                                                 
+  //  this->val() += e_val;                                                                             
+  //  return *this;                                                                                     
+  //}
 
 
 //         ----------------------------------------------

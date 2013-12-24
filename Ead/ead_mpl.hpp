@@ -153,63 +153,6 @@ struct ExprDxij<Fad,1>
 
 
 
-// Essa foi a forma mais rapida de realizar o produto escalar
-// This class compute the ith derivative of an expression
-template<typename Expr, int Nleaves>
-struct Dot
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  ValueT result; // = exp.dx(i)
-  inline
-  Dot(ValueT partials[], ValueT dxi[])
-  {
-    result  = partials[0] * dxi[0];
-    result += Dot<Expr, Nleaves-1>(partials+1, dxi+1).result;
-  }
-};
-
-template<typename Expr>
-struct Dot<Expr,1>
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  ValueT result;
-  inline
-  Dot(ValueT partials[],ValueT dxi[]) : result(partials[0] * dxi[0])
-  { }
-};
-
-
-
-
-
-// Essa foi a forma mais rapida de realizar o produto escalar
-// This class compute the ith derivative of an expression
-template<typename Expr, int Nleaves>
-struct Getter
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  inline
-  Getter(ValueT partials[], LeafType const* leaves[], int i)
-  {
-    partials[0] = leaves[0]->dx(i);
-    Getter<Expr, Nleaves-1>(partials+1, leaves+1, i);
-  }
-};
-
-template<typename Expr>
-struct Getter<Expr,1>
-{
-  typedef typename Expr::ValueT ValueT;
-  typedef typename Expr::LeafType LeafType;
-  inline
-  Getter(ValueT partials[], LeafType const* leaves[], int i)
-  { partials[0] = leaves[0]->dx(i); }
-};
-
-
 } // endnamespace
 
 
