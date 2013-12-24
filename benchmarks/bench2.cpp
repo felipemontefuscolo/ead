@@ -55,9 +55,9 @@ double element_residue_ad(double x_[], double G_[], double H_[])
   
   y = 0;
   
-  for (int i = 0; i < Npts; i+=3)
+  for (int i = 0; i < Npts; ++i)
   {
-    y += pow(x[i],2) + pow(x[i+1],2) + pow(x[i+2],2);
+    y += pow(x[i],2);
   }
 
   y = 1./sqrt(y);
@@ -82,9 +82,9 @@ double element_residue_exact(double x_[], double G_[], double H_[])
   double *H = H_;
 
   y = 0;
-  for (int i = 0; i < Npts; i+=3)
+  for (int i = 0; i < Npts; ++i)
   {
-    y += pow(x[i],2) + pow(x[i+1],2) + pow(x[i+2],2);
+    y += pow(x[i],2);
   }
   y = 1./sqrt(y);
 

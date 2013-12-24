@@ -1,12 +1,17 @@
-#ifdef HAS_ADEPT
-
 #include <iostream>
 //#define EAD_DEBUG       // to debug
 #include "Ead/ead.hpp"
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>      // std::setprecision
+
+#ifdef HAS_ADEPT
 #include "include/adept.h"
+#endif
+
+#ifdef HAS_FADBAD
+#include "fadiff.h"
+#endif
 
 using namespace std;
 using namespace ead;
@@ -110,10 +115,9 @@ void element_residue_exact(double u_[], double R_[], double J_[])
     }
   }
   
-  //volatile double lixo(RR[I%Npts]); // volatile to avoid optimization
 }
 
-
+#ifdef HAS_ADEPT
 void element_residue_adept(double u_[], double R_[], double J_[])
 {
   using adept::adouble;
@@ -147,6 +151,49 @@ void element_residue_adept(double u_[], double R_[], double J_[])
   for (int i = 0; i < Npts; ++i)
     R_[i] = R[i].value();
 }
+#endif
+
+
+#ifdef HAS_FADBAD
+void element_residue_fadbad(double u_[], double R_[], double J_[])
+{
+  typedef fadbad::F<double,Npts> adouble;
+
+  adouble u[Npts]; // adept
+  adouble R[Npts];
+
+  for (int i = 0; i < Npts; ++i)
+  {
+    u[i] = u_[i]; // random values
+    u[i].diff(i);
+  }
+  
+  for (int q = 0; q < Nqp; ++q)
+  {
+    adouble uqp(u[0]*Phi[0][q]);
+    
+    for (int j = 1; j < Npts; ++j)
+      uqp += u[j]*Phi[j][q];
+    
+    adouble sqrt_u (sqrt(uqp));
+
+    for (int i = 0; i < Npts; ++i)
+    {
+      R[i] += (uqp + pow(sqrt_u,3) + sqrt_u) * Phi[i][q] * weight[q];
+    }
+  }
+  
+  for (int i = 0; i < Npts; ++i)
+  {
+    R_[i] = R[i].x();
+    for (int j = 0; j < Npts; ++j)
+      J_[i*Npts + j] = R[i].d(j);
+  }
+}
+#endif
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -207,6 +254,7 @@ int main(int argc, char *argv[])
   print_jac(J);
   
   // ============================================================
+#ifdef HAS_ADEPT
 
   begin = clock();
   
@@ -218,17 +266,44 @@ int main(int argc, char *argv[])
   
   cout << "ADEPT:\n";
   print_jac(J);
+
+#endif
+
+  // ============================================================
+#ifdef HAS_FADBAD
+
+  begin = clock();
   
+  for (int i = 0; i < N_iterations; ++i)
+    element_residue_fadbad(u, R, J);
+
+  end = clock();
+  double elapsed_fadbad = double(end - begin) / CLOCKS_PER_SEC;
+  
+  cout << "FADBAD:\n";
+  print_jac(J);
+
+#endif
+
+
   // ====================== TIMES ============================
 
   cout << "Time elapsed:\n";
   cout << "EAD: "; cout << std::setprecision(9) << elapsed_ad;
   cout << endl << endl;
-  
+
+#ifdef HAS_ADEPT
   cout << "Time elapsed:\n";
   cout << "ADEPT: "; cout << std::setprecision(9) << elapsed_adept;
   cout << endl << endl;  
-  
+#endif
+
+#ifdef HAS_FADBAD
+  cout << "Time elapsed:\n";
+  cout << "FADBAD: "; cout << std::setprecision(9) << elapsed_fadbad;
+  cout << endl << endl;  
+#endif
+
   cout << "Time elapsed:\n";
   cout << "EXACT: "; cout << std::setprecision(9) << elapsed_ex;
   cout << endl << endl;
@@ -261,40 +336,6 @@ int main(int argc, char *argv[])
 }
 
 
-template<class TensorType, class Double>
-void invert_a(TensorType & a, Double & det)
-{
-  det = a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])+a[0][1]*(a[1][2]*a[2][0]-a[1][0]*a[2][2])+a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
-
-  Double const inv00 = ( a[1][1]*a[2][2]-a[1][2]*a[2][1] )/det;
-  Double const inv01 = ( a[0][2]*a[2][1]-a[0][1]*a[2][2] )/det;
-  Double const inv02 = ( a[0][1]*a[1][2]-a[0][2]*a[1][1] )/det;
-  Double const inv10 = ( a[1][2]*a[2][0]-a[1][0]*a[2][2] )/det;
-  Double const inv11 = ( a[0][0]*a[2][2]-a[0][2]*a[2][0] )/det;
-  Double const inv12 = ( a[0][2]*a[1][0]-a[0][0]*a[1][2] )/det;
-  Double const inv20 = ( a[1][0]*a[2][1]-a[1][1]*a[2][0] )/det;
-  Double const inv21 = ( a[0][1]*a[2][0]-a[0][0]*a[2][1] )/det;
-  Double const inv22 = ( a[0][0]*a[1][1]-a[0][1]*a[1][0] )/det;
-  
-  a[0][0] = inv00;
-  a[0][1] = inv01;
-  a[0][2] = inv02;
-  a[1][0] = inv10;
-  a[1][1] = inv11;
-  a[1][2] = inv12;
-  a[2][0] = inv20;
-  a[2][1] = inv21;
-  a[2][2] = inv22;
-}
-
-
-
-#else
-
-
-int main() {}
-
-#endif
 
 
 

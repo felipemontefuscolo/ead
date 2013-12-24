@@ -1,5 +1,6 @@
 EAD_DIR ?= ../
 ADEPT_DIR ?=/home/felipe/libs/adept
+FADBAD_DIR ?= /home/felipe/libs/FADBAD++
 
 CXX = g++
 RM  = rm -f
@@ -8,10 +9,14 @@ CPPSOURCES = $(wildcard *.cpp)
 TOBJECTS = $(CPPSOURCES:.cpp=.o)
 EXECS = $(CPPSOURCES:.cpp=.exe)
 
-# tests some variables
 ifneq "" "$(wildcard ${ADEPT_DIR})"
 CPPFLAGS += -I $(ADEPT_DIR) -DHAS_ADEPT
-LDFLAGS+= -L $(ADEPT_DIR)/lib -ladept
+LDFLAGS+= -L $(ADEPT_DIR)/lib -ladept -DHAS_ADEPT
+endif
+
+ifneq "" "$(wildcard ${FADBAD_DIR})"
+CPPFLAGS += -I $(FADBAD_DIR) -DHAS_FADBAD
+LDFLAGS+= -L $(FADBAD_DIR)/lib -DHAS_FADBAD
 endif
 
 # Flags passed to the preprocessor.
