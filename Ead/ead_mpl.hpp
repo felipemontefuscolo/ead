@@ -123,6 +123,34 @@ struct ExprDxi<Fad,1>
 };
 
 
+template<typename Fad, int Nleaves>
+struct ExprDxij
+{
+  typedef typename Fad::ValueT ValueT;
+  typedef typename Fad::LeafType LeafType;
+  typedef typename Fad::LeafData LeafData;
+  ValueT result; // = exp.dx(i)
+  inline
+  ExprDxij(LeafData const* leaves, int i, int j)
+  {
+    result  = leaves[0].ptr->dx(i)*leaves[0].ptr->dx(j)*leaves[0].hes_dig + leaves[0].partial * leaves[0].ptr->d2xFast(i,j);
+    result += ExprDxij<Fad, Nleaves-1>(leaves+1, i, j).result;
+  }
+};
+
+template<typename Fad>
+struct ExprDxij<Fad,1>
+{
+  typedef typename Fad::ValueT ValueT;
+  typedef typename Fad::LeafType LeafType;
+  typedef typename Fad::LeafData LeafData;
+  ValueT result;
+  inline
+  ExprDxij(LeafData const* leaves, int i, int j) : result(leaves[0].ptr->dx(i)*leaves[0].ptr->dx(j)*leaves[0].hes_dig +
+                                                          leaves[0].partial * leaves[0].ptr->d2xFast(i,j))
+  { }
+};
+
 
 
 // Essa foi a forma mais rapida de realizar o produto escalar

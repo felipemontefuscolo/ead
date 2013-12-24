@@ -213,7 +213,6 @@ public:
           ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);
           ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);
 
-          e_dxij += leaf_k_dxi*leaf_k_dxj*leaves[k].hes_dig + leaves[k].partial*leaves[k].ptr->d2xFast(i,j);
           for (int l = k+1; l< n_leaves; ++l)
           {
             int kl = k*(n_leaves-1)-k*(k+1)/2+l-1;
@@ -221,7 +220,7 @@ public:
             e_dxij += hessian_off_diag[kl]*(leaves[k].ptr->dx(i)*leaves[l].ptr->dx(j) + leaves[k].ptr->dx(j)*leaves[l].ptr->dx(i));
           }
         }
-        d2xFast(i,j)  = e_dxij;
+        d2xFast(i,j)  = e_dxij + ExprDxij<Self, n_leaves>(leaves, i, j).result;
        
       }
     }
