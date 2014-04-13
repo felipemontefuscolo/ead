@@ -65,8 +65,12 @@ public:
 
   static int const n_leaves = 1;
 
+  inline
+  DFad() : m_n_vars(0)
+  { }
+
   inline explicit
-  DFad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx()
+  DFad(ValueT_CR val, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx()
   {
     EAD_CHECK(n_comps <= max_n_comps, "num comps > max num comps");
   }
@@ -150,7 +154,8 @@ public:
       return *this;
     }
     
-    EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    //EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    m_n_vars = z.m_n_vars;
     
     for (unsigned i=0; i < m_n_vars; ++i)
       m_dx[i] = z.m_dx[i];
@@ -171,14 +176,15 @@ public:
   Self& operator OP (ExprWrapper1<ExprT> const& e_)                      \
   {                                                                      \
     ExprT const& e (e_);                                                 \
-    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");         \
-    LeafData leaves[ExprT::n_leaves];                                     \
+    /*EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");*/     \
+    m_n_vars = e.numVars();                                              \
+    LeafData leaves[ExprT::n_leaves];                                    \
     e.computePartialsAndGetLeaves(1.0, leaves);                          \
     ValueT e_val = e.val();                                              \
     ValueT e_dxi;                                                        \
     for (unsigned i = 0; i<m_n_vars; ++i)                                \
     {                                                                    \
-      e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;           \
+      e_dxi = ExprDxi<Self, ExprT::n_leaves>(leaves, i).result;          \
       IMPL                                                               \
     }                                                                    \
     this->val() OP e_val;                                                \
@@ -363,9 +369,9 @@ private:                                                                        
                                                                                                        \
 public:                                                                                                \
                                                                                                        \
-  static int const n_leaves1 = ExprL::n_leaves;                                                          \
-  static int const n_leaves2 = ExprR::n_leaves;                                                          \
-  static int const n_leaves  = n_leaves1 + n_leaves2;                                                     \
+  static int const n_leaves1 = ExprL::n_leaves;                                                        \
+  static int const n_leaves2 = ExprR::n_leaves;                                                        \
+  static int const n_leaves  = n_leaves1 + n_leaves2;                                                  \
                                                                                                        \
   inline                                                                                               \
   OP_CLASS_NAME(ExprL const& lhs, ExprR const& rhs) : m_expL(lhs),                                     \
@@ -380,13 +386,13 @@ public:                                                                         
                                                                                                        \
   inline                                                                                               \
   unsigned numVars() const                                                                             \
-  { return m_expL.numVars(); }                                                                         \
+  { return std::max(m_expL.numVars(),m_expR.numVars()); }                                              \
                                                                                                        \
   inline                                                                                               \
   void computePartialsAndGetLeaves(ValueT_CR bar, LeafData leaves[]) const                             \
   {                                                                                                    \
     m_expL.computePartialsAndGetLeaves(DEDL, leaves);                                                  \
-    m_expR.computePartialsAndGetLeaves(DEDR, leaves + n_leaves1);                                       \
+    m_expR.computePartialsAndGetLeaves(DEDR, leaves + n_leaves1);                                      \
   }                                                                                                    \
                                                                                                        \
 };                                                                                                     \

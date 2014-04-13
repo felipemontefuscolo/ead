@@ -70,8 +70,12 @@ public:
   static int const n_leaves = 1;
   static int const dtmp_size = 1;
 
+  inline
+  D2Fad() : m_n_vars(0)
+  { }
+
   inline explicit
-  D2Fad(ValueT_CR val=0, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx(), m_d2x()
+  D2Fad(ValueT_CR val, unsigned n_comps=0) : m_val(val), m_n_vars(n_comps), m_dx(), m_d2x()
   {
     EAD_CHECK(n_comps <= max_n_comps, "num comps > max num comps");
   }
@@ -188,7 +192,8 @@ public:
       return *this;
     }
     
-    EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    //EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    m_n_vars = z.m_n_vars;
     
     for (unsigned i=0; i < m_n_vars; ++i)
       m_dx[i] = z.m_dx[i];
@@ -212,7 +217,8 @@ public:
   {                                                                                                   \
     const int n_leaves = ExprT::n_leaves;                                                             \
     ExprT const& e (e_);                                                                              \
-    EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");                                      \
+    /*EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");*/                                  \
+    m_n_vars = e.numVars();                                                                           \
     LeafData leaves[n_leaves];                                                                        \
     ValueT hessian_off_diag[n_leaves*(n_leaves-1)/2 + (n_leaves==1?1:0)]; /* hessian off-diagonal */  \
     /* partial of the temporaries; it doesn't store for the last temporary */                         \
@@ -474,7 +480,7 @@ public:                                                                         
   { return VAL_RET;}                                                                                   \
                                                                                                        \
   unsigned numVars() const                                                                             \
-  { return m_expL.numVars(); }                                                                         \
+  { return std::max(m_expL.numVars(),m_expR.numVars()); }                                              \
                                                                                                        \
                                                                                                        \
   void getLeafsAndTempPartials(ValueT dtmp[], LeafData leaves[]) const                                 \

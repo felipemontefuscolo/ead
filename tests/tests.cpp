@@ -456,7 +456,7 @@ TEST(EADTest, AliasTest1)
 TEST(EADTest, LongTreeTest)
 {
   int N = 10;
-  double const c = 8./7.;
+  //double const c = 8./7.;
   vector<adouble> x(N);
   adouble y(0,N);
 
@@ -703,8 +703,8 @@ TEST(EADTest, Assignments)
   ASSERT_EQ(5u, x.numVars());
   ASSERT_NEAR(1., x.dx(2), 1e-14);
 
-  ASSERT_ANY_THROW(y=x);
-
+  ASSERT_EQ(10u, (x*y).numVars());
+  ASSERT_EQ(10u, (y*x).numVars());
 
 }
 
