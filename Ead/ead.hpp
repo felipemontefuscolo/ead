@@ -135,6 +135,29 @@ public:
     leaves[0].ptr = this;
   }
 
+  /// If x is a DFad, thus the expression
+  /// x = DFad(3.14)
+  /// will assign the value 3.14 to x,
+  /// and all its derivatives must be zero.
+  /// This is because DFad(3.14) is seen as constant
+  inline Self& operator= (Self const& z)
+  {
+    m_val = z.m_val;             // value
+    
+    if (z.m_n_vars == 0)
+    {
+      resetDerivatives();
+      return *this;
+    }
+    
+    EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    
+    for (unsigned i=0; i < m_n_vars; ++i)
+      m_dx[i] = z.m_dx[i];
+      
+    return *this;
+  }
+
 //         ----------------------------------------------
 //     -------------------------------------------------------
 //------------------ ASSIGNS OPERATORS | EXPR VERSION ---------------

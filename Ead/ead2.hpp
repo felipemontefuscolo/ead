@@ -173,6 +173,32 @@ public:
     dtmp[0] = bar;
   }
 
+  /// If x is a DFad, thus the expression
+  /// x = D2Fad(3.14)
+  /// will assign the value 3.14 to x,
+  /// and all its derivatives must be zero.
+  /// This is because D2Fad(3.14) is seen as constant
+  inline Self& operator= (Self const& z)
+  {
+    m_val = z.m_val;             // value
+    
+    if (z.m_n_vars == 0)
+    {
+      resetDerivatives();
+      return *this;
+    }
+    
+    EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
+    
+    for (unsigned i=0; i < m_n_vars; ++i)
+      m_dx[i] = z.m_dx[i];
+
+    for (unsigned i=0; i < m_n_vars*(m_n_vars+1)/2; ++i)
+      m_d2x[i] = z.m_d2x[i];
+    
+    return *this;
+  }
+
 //         ----------------------------------------------
 //     -------------------------------------------------------
 //------------------ ASSIGNS OPERATORS | EXPR VERSION ---------------

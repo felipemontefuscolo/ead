@@ -682,7 +682,31 @@ TEST(EADTest, NonSmoothROP)
 
 
 
+TEST(EADTest, Assignments)
+{
+  adouble x(1, 5, 2), y(0.5, 10, 4), z = x;
 
+  // must add the value 1 to x, but its components must not be touched
+  x = adouble(3.14);
+  ASSERT_NEAR(3.14, x.val(), 1e-14 );
+  ASSERT_EQ(5u, x.numVars());
+  for (int i=0; i<5; ++i)
+    ASSERT_NEAR(0., x.dx(i), 1e-14);
+
+  ASSERT_NEAR(1., z.val(), 1e-14);
+  ASSERT_EQ(5u, z.numVars());
+  ASSERT_NEAR(1., z.dx(2), 1e-14);
+
+  x = z;
+
+  ASSERT_NEAR(1., x.val(), 1e-14);
+  ASSERT_EQ(5u, x.numVars());
+  ASSERT_NEAR(1., x.dx(2), 1e-14);
+
+  ASSERT_ANY_THROW(y=x);
+
+
+}
 
 
 

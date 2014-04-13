@@ -904,5 +904,45 @@ TEST(EADTest, DeepTree)
 
 
 
+TEST(EADTest, Assignments)
+{
+  adouble x(1, 5, 2), y(0.5, 10, 4), h = x;
+
+  x = x*x*x*x;
+
+  // must add the value 1 to x, and all its components must vanished
+  x = adouble(3.14);
+  ASSERT_NEAR(3.14, x.val(), 1e-14 );
+  ASSERT_EQ(5u, x.numVars());
+  for (int i=0; i<5; ++i)
+  {
+    ASSERT_NEAR(0., x.dx(i), 1e-14);
+    for (int j=0; j<5; ++j)
+      ASSERT_NEAR(0., x.d2x(i,j), 1e-14);
+  }
+
+  adouble z = x;
+
+  ASSERT_NEAR(3.14, z.val(), 1e-14);
+  ASSERT_EQ(5u, z.numVars());
+  for (int i=0; i<5; ++i)
+  {
+    ASSERT_NEAR(0., z.dx(i), 1e-14);
+    for (int j=0; j<5; ++j)
+      ASSERT_NEAR(0., z.d2x(i,j), 1e-14);
+  }
+
+  x = h;
+  ASSERT_NEAR(1, x.val(), 1e-14);
+  ASSERT_EQ(5u, x.numVars());
+  ASSERT_NEAR(1., x.dx(2), 1e-14);
+
+
+  ASSERT_ANY_THROW(y=x);
+
+  adouble w;
+  ASSERT_ANY_THROW(w=x);
+}
+
 
 
