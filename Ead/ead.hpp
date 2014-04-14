@@ -177,9 +177,11 @@ public:
   {                                                                      \
     ExprT const& e (e_);                                                 \
     /*EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");*/     \
-    m_n_vars = e.numVars();                                              \
     LeafData leaves[ExprT::n_leaves];                                    \
     e.computePartialsAndGetLeaves(1.0, leaves);                          \
+    unsigned const e_nv = e.numVars();                                   \
+    if (e_nv)                                                            \
+      m_n_vars = e_nv;                                                   \
     ValueT e_val = e.val();                                              \
     ValueT e_dxi;                                                        \
     for (unsigned i = 0; i<m_n_vars; ++i)                                \

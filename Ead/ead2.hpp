@@ -218,7 +218,6 @@ public:
     const int n_leaves = ExprT::n_leaves;                                                             \
     ExprT const& e (e_);                                                                              \
     /*EAD_CHECK(numVars()==e.numVars(), "incompatible dimension");*/                                  \
-    m_n_vars = e.numVars();                                                                           \
     LeafData leaves[n_leaves];                                                                        \
     ValueT hessian_off_diag[n_leaves*(n_leaves-1)/2 + (n_leaves==1?1:0)]; /* hessian off-diagonal */  \
     /* partial of the temporaries; it doesn't store for the last temporary */                         \
@@ -226,6 +225,9 @@ public:
     ValueT dtmp[dtmp_true_size <=0 ? 1 : dtmp_true_size];                                             \
     e.getLeafsAndTempPartials(dtmp - n_leaves, leaves);                                               \
     e.computeHessianPartials(1.0, 0.0, leaves, dtmp-n_leaves, hessian_off_diag, n_leaves);            \
+    unsigned const e_nv = e.numVars();                                                                \
+    if (e_nv)                                                                                         \
+      m_n_vars = e_nv;                                                                                \
     ValueT e_val = e.val();                                                                           \
     CACHE_DXI                                                                                         \
     for (int i = 0; i<(int)m_n_vars; ++i)                                                             \
