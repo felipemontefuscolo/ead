@@ -66,7 +66,7 @@ public:
   static int const n_leaves = 1;
 
   inline
-  DFad() : m_n_vars(0)
+  DFad() : m_n_vars(0), m_dx()
   { }
 
   inline explicit

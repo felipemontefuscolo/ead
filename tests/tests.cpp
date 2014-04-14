@@ -706,6 +706,24 @@ TEST(EADTest, Assignments)
   ASSERT_EQ(10u, (x*y).numVars());
   ASSERT_EQ(10u, (y*x).numVars());
 
+  adouble v(99);
+
+  x=v; // v is like a constant: all components of x now must be zero
+  
+  ASSERT_NEAR(99, x.val(), 1e-14);
+  ASSERT_EQ(5u, x.numVars());
+  for (int i = 0; i < (int)x.numVars(); ++i)
+    ASSERT_NEAR(0., x.dx(i), 1e-14);
+
+  x.setDiff(2);
+  ASSERT_NEAR(1., x.dx(2), 1e-14);
+  
+  x=v+v; // v is like a constant: all components of x now must be zero
+  
+  ASSERT_NEAR(198, x.val(), 1e-14);
+  ASSERT_EQ(5u, x.numVars());
+  for (int i = 0; i < (int)x.numVars(); ++i)
+    ASSERT_NEAR(0., x.dx(i), 1e-14);
 }
 
 

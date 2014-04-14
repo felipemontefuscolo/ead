@@ -71,7 +71,7 @@ public:
   static int const dtmp_size = 1;
 
   inline
-  D2Fad() : m_n_vars(0)
+  D2Fad() : m_n_vars(0), m_dx(), m_d2x()
   { }
 
   inline explicit
@@ -107,8 +107,16 @@ public:
   ValueT_CR  d2xFast(unsigned k) const { return m_d2x[k];}
 
   /* assume i<=j */
-  ValueT&    d2xFast(unsigned i, unsigned j)       { return m_d2x[i*numVars()-i*(i+1)/2+j];}
-  ValueT_CR  d2xFast(unsigned i, unsigned j) const { return m_d2x[i*numVars()-i*(i+1)/2+j];}
+  ValueT&    d2xFast(int i, int j)      
+  {
+    int const idx = std::abs(i*static_cast<int>(numVars())-i*(i+1)/2+j);
+    return m_d2x[idx];
+  }
+  ValueT_CR  d2xFast(int i, int j) const
+  {
+    int const idx = std::abs(i*static_cast<int>(numVars())-i*(i+1)/2+j);
+    return m_d2x[idx];
+  }
 
   ValueT&    d2x(unsigned i=0,unsigned j=0)
   {
