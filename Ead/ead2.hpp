@@ -350,7 +350,7 @@ public:
   operator/= (T const& z)
   {
     this->val() /= z;
-    for (int i = 0; i < m_n_vars; ++i)
+    for (unsigned i = 0; i < m_n_vars; ++i)
       m_dx[i] /= z;
     for (unsigned i = 0, N = hessianSize(); i < N; ++i)
       m_d2x[i] /= z;
