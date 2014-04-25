@@ -246,8 +246,6 @@ public:
                                                                                                       \
         for (int k = 0; k< n_leaves ; ++k)                                                            \
         {                                                                                             \
-          ValueT const leaf_k_dxi = leaves[k].ptr->dx(i);                                             \
-          ValueT const leaf_k_dxj = leaves[k].ptr->dx(j);                                             \
                                                                                                       \
           for (int l = k+1; l< n_leaves; ++l)                                                         \
           {                                                                                           \
