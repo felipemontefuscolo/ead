@@ -10,7 +10,22 @@
 #ifndef EAD_MPL_HPP
 #define EAD_MPL_HPP
 
+#include <ciso646>  // detect std::lib
+#ifdef _LIBCPP_VERSION
+// using libc++
+#define MULTI_HAVE_TYPE_TRAITS
+#else
+// using libstdc++
+#define MULTI_HAVE_TR1_TYPE_TRAITS
+#endif
+
+#ifdef MULTI_HAVE_TYPE_TRAITS
+#include <type_traits>
+namespace Tr1 = std;
+#else
 #include <tr1/type_traits>
+namespace Tr1 = std::tr1;
+#endif
 
 namespace ead
 {
@@ -54,9 +69,24 @@ struct RetTrivial
   //static char const id = 'A';
 };
 
+// We can't get HasTrivialConstructor right without compiler help, so
+// fail conservatively. We will assume it's false except for: (1) types
+// for which is_pod is true. (2) std::pair of types with trivial
+// constructors. (3) array of a type with a trivial constructor.
+// (4) const versions thereof.
+template <class T> struct HasTrivialConstructor : Tr1::is_pod<T> { };
+template <class T, class U> struct HasTrivialConstructor<std::pair<T, U> >
+  : Tr1::integral_constant<bool,
+                      (HasTrivialConstructor<T>::value &&
+                       HasTrivialConstructor<U>::value)> { };
+template <class A, int N> struct HasTrivialConstructor<A[N]>
+  : HasTrivialConstructor<A> { };
+template <class T> struct HasTrivialConstructor<const T>
+  : HasTrivialConstructor<T> { };
+
 template<class U>
 struct RetTrivial<U,
-    typename EnableIf<!std::tr1::has_trivial_constructor<U>::value || (sizeof(U)>sizeof(double)), void>::type>
+    typename EnableIf<!HasTrivialConstructor<U>::value || (sizeof(U)>sizeof(double)), void>::type>
 {
   typedef U&       type;
   typedef U const& const_type;
@@ -68,8 +98,8 @@ template<typename T, typename Expr>
 struct IsField
 {
   typedef typename Expr::FieldT FieldT;
-  static const bool value = std::tr1::is_arithmetic<T>::value ||
-                            std::tr1::is_same<T,FieldT>::value;
+  static const bool value = Tr1::is_arithmetic<T>::value ||
+                            Tr1::is_same<T,FieldT>::value;
 };
 
 

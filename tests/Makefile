@@ -17,7 +17,7 @@ USER_DIR = .
 
 EAD_DIR ?= ../
 
-CXX = g++
+CXX = clang++
 RM  = rm -f
 
 # Flags passed to the preprocessor.

@@ -46,6 +46,17 @@ int main(int argc, char **argv)
 
 // --------- TESTING FUNDAMENTAL OPERATORS ---------//
 
+TEST(EADTest, EqualityTest)
+{
+  adouble x, y(2.0, 2);
+  y.setDiff(0,2);
+  x = 2.0;
+  x = x + y;
+  EXPECT_NEAR(x.val(), 4.0, EAD_TOL);
+  EXPECT_NEAR(x.dx(0), 2.0, EAD_TOL);
+  EXPECT_NEAR(x.dx(1), 0.0, EAD_TOL);
+}
+
 TEST(EADTest, FundamentalOpsTest)
 {
   double const c = 3.;
