@@ -1,7 +1,7 @@
-EAD: Easy Automatic Differentiation
-Author: Felipe Montefuscolo
-contact: felipe.mt87 (at) gmail.com
-location: Brazil, SP
+EAD - Easy Automatic Differentiation
+
+* Author: Felipe Montefuscolo
+* contact: felipe.mt87 (at) gmail.com
 
 ===================================
 
@@ -24,4 +24,3 @@ EAD also tries to be efficient, compact and easy to use.
 This library has been tested only under Linux with gcc v4.6.
 
 Any help to improve, extend, maintain,  ..., is Welcome!
-
