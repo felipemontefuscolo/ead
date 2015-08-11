@@ -15,7 +15,7 @@
 # Where to find user code.
 USER_DIR = .
 
-EAD_DIR ?= ../
+EAD_DIR = ../
 
 CXX = clang++
 RM  = rm -f
@@ -24,7 +24,7 @@ RM  = rm -f
 CPPFLAGS += -I$(GTEST_DIR)/include -I$(EAD_DIR)
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pedantic
+CXXFLAGS += -std=c++11 -g -Wall -Wextra -pedantic
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.

@@ -685,6 +685,19 @@ TEST(EADTest, LongTreeTest2)
 
 }
 
+TEST(EADTest, AutoResizeTest)
+{
+  adouble x(2,5,0);
+  adouble z, y;
+  z = 1.;
+  y = x;
+  z -= y;
+
+  EXPECT_EQ(5, z.numVars());
+}
+
+
+
 // ~~                                                                 ~~
 // ~~~~~~~~                                                     ~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~                                 ~~~~~~~~~~~~~~~~~~

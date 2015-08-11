@@ -107,7 +107,7 @@ public:
   ValueT_CR  d2xFast(unsigned k) const { return m_d2x[k];}
 
   /* assume i<=j */
-  ValueT&    d2xFast(int i, int j)      
+  ValueT&    d2xFast(int i, int j)
   {
     int const idx = std::abs(i*static_cast<int>(numVars())-i*(i+1)/2+j);
     return m_d2x[idx];
@@ -193,22 +193,22 @@ public:
   inline Self& operator= (Self const& z)
   {
     m_val = z.m_val;             // value
-    
+
     if (z.m_n_vars == 0)
     {
       resetDerivatives();
       return *this;
     }
-    
+
     //EAD_CHECK(numVars()==z.numVars(), "incompatible dimension");
     m_n_vars = z.m_n_vars;
-    
+
     for (unsigned i=0; i < m_n_vars; ++i)
       m_dx[i] = z.m_dx[i];
 
     for (unsigned i=0; i < m_n_vars*(m_n_vars+1)/2; ++i)
       m_d2x[i] = z.m_d2x[i];
-    
+
     return *this;
   }
 
@@ -231,7 +231,7 @@ public:
     /* partial of the temporaries; it doesn't store for the last temporary */                         \
     int const dtmp_true_size = ExprT::dtmp_size - n_leaves;                                           \
     ValueT dtmp[dtmp_true_size <=0 ? 1 : dtmp_true_size];                                             \
-    e.getLeafsAndTempPartials(dtmp - n_leaves, leaves);                                               \
+    e.getLeafsAndTempPartials(dtmp-n_leaves+(n_leaves==1), leaves);                                   \
     e.computeHessianPartials(1.0, 0.0, leaves, dtmp-n_leaves, hessian_off_diag, n_leaves);            \
     unsigned const e_nv = e.numVars();                                                                \
     if (e_nv)                                                                                         \
@@ -281,13 +281,14 @@ public:
   EAD_ASSIGN_OPS( =, (void)(0);, EAD_DXI_CPY, dx(i) =  e_dxi;, d2xFast(i,j)  = e_dxij;)
   EAD_ASSIGN_OPS(+=, (void)(0);, EAD_DXI_CPY, dx(i) += e_dxi;, d2xFast(i,j) += e_dxij;)
   EAD_ASSIGN_OPS(-=, (void)(0);, EAD_DXI_CPY, dx(i) -= e_dxi;, d2xFast(i,j) -= e_dxij;)
-  
+
   EAD_ASSIGN_OPS(*=, EAD_CACHE_DXI, (void)(0);, dx(i) = val()*e_dx[i] +  dx(i)*e_val;,
                                                 d2xFast(i,j) = val()*e_dxij + d2xFast(i,j)*e_val + dx(i)*e_dx[j] + dx(j)*e_dx[i];   )
 
   EAD_ASSIGN_OPS(/=, EAD_CACHE_DXI, (void)(0);, dx(i) = (dx(i)*e_val - val()*e_dx[i])/(e_val*e_val);,
                                                 d2xFast(i,j) = (e_val*(d2xFast(i,j)*e_val - dx(i)*e_dx[j] - dx(j)*e_dx[i] - val()*e_dxij)
                                                 + 2.*e_dx[i]*e_dx[j]*val())/std::pow(e_val,3);   )
+
 
 #undef EAD_ASSIGN_OPS
 #undef EAD_DXI_CPY
@@ -943,7 +944,3 @@ exp (ExprWrapper2<Expr> const& e_)
 
 
 #endif // EAD2_HPP
-
-
-
-
